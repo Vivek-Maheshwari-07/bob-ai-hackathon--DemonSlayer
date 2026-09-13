@@ -1,0 +1,68 @@
+name: Validate Submission Repository
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  validate-structure:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install pyyaml
+
+      - name: Validate submission.yaml exists and is valid YAML
+        run: |
+          python -c "
+          import yaml, sys
+          try:
+              with open('submission.yaml', 'r') as f:
+                  data = yaml.safe_load(f)
+              assert 'team' in data, 'Missing team in submission.yaml'
+              assert 'submission' in data, 'Missing submission in submission.yaml'
+              print('submission.yaml is valid YAML.')
+          except Exception as e:
+              print(f'Error validating submission.yaml: {e}')
+              sys.exit(1)
+          "
+
+      - name: Check required directories and files
+        run: |
+          python -c "
+          import os, sys
+          required_paths = [
+              'README.md',
+              'submission.yaml',
+              'CONTRIBUTING.md',
+              'docs/problem-statement.md',
+              'docs/solution-overview.md',
+              'docs/architecture.md',
+              'docs/setup-guide.md',
+              'demo/demo-video-link.txt',
+              'demo/live-demo-url.txt',
+              'demo/screenshots/README.md',
+              'demo/README.md',
+              'presentation/README.md',
+              'src/README.md',
+              'src/.env.example',
+              'src/frontend',
+              'src/backend'
+          ]
+          missing = [p for p in required_paths if not os.path.exists(p)]
+          if missing:
+              print(f'Missing required paths: {missing}')
+              sys.exit(1)
+          print('All required submission files and directories exist.')
+          "
