@@ -1,0 +1,31 @@
+{
+  "name": "pharma-vigil-ai-platform",
+  "version": "1.0.0",
+  "description": "Drug Safety Signal Detector & Regulatory Submission Readiness Checker — IBM Bobathon 2026 P2",
+  "scripts": {
+    "dev": "concurrently -k -p \"[{name}]\" -n \"BACKEND,FRONTEND\" -c \"cyan.bold,magenta.bold\" \"npm run dev:backend\" \"npm run dev:frontend\"",
+    "dev:backend": "python -m uvicorn app.main:app --app-dir src/backend --host 0.0.0.0 --port 8000 --reload",
+    "dev:frontend": "npm run dev --prefix src/frontend",
+    "start": "concurrently -k -p \"[{name}]\" -n \"BACKEND,FRONTEND\" -c \"cyan.bold,magenta.bold\" \"npm run start:backend\" \"npm run start:frontend\"",
+    "start:backend": "python -m uvicorn app.main:app --app-dir src/backend --host 0.0.0.0 --port 8000",
+    "start:frontend": "npm run start --prefix src/frontend",
+    "build": "npm run build --prefix src/frontend",
+    "test": "python -m pytest src/backend",
+    "test:backend": "python -m pytest src/backend"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  },
+  "keywords": [
+    "pharmacovigilance",
+    "drug-safety",
+    "prr",
+    "ich-m4",
+    "ctd",
+    "fda",
+    "ibm-bobathon",
+    "ai"
+  ],
+  "author": "Team Demon Slayer",
+  "license": "Apache-2.0"
+}

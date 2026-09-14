@@ -1,88 +1,123 @@
-# Solution Overview: Drug Safety & Regulatory Readiness Platform
+# Solution Overview: PharmSignals Intelligence Platform
 
 ---
 
-## Conceptual Architecture & Processing Pipeline
+## 1. Executive Summary
 
-The platform is designed around a continuous, multi-stage pipeline that ingests domain data, executes analytical calculations, validates regulatory compliance, synthesizes AI-driven insights, and delivers actionable visualizations alongside natural-language copilot support.
+**PharmSignals** is a dual-capability clinical intelligence and regulatory compliance hub designed to streamline drug safety surveillance and eliminate regulatory submission bottlenecks. By bridging post-market pharmacovigilance analytics with pre-market ICH M4 dossier verification, PharmSignals empowers cross-functional teams to proactively manage drug safety liabilities and accelerate marketing authorization filings.
 
 ```
-┌─────────────────┐       ┌────────────────────────┐       ┌────────────────────────┐
-│  Input Layer    │  ───► │ Data Processing Layer  │  ───► │  Analytical Engines    │
-│                 │       │                        │       │                        │
-│ • Adverse Event │       │ • Cleaning & Parsing   │       │ • Event Clustering     │
-│   Datasets      │       │ • Normalization        │       │ • PRR Calculations    │
-│ • CTD Dossier   │       │ • Structure Extraction │       │ • CTD Completeness &   │
-│   Structure     │       │                        │       │   ICH M4 Rule Checker  │
-└─────────────────┘       └────────────────────────┘       └────────────────────────┘
-                                                                       │
-                                                                       ▼
-┌─────────────────┐       ┌────────────────────────┐       ┌────────────────────────┐
-│ IBM Bob Copilot │  ◄─── │  Interactive Dashboard │  ◄─── │  AI Reasoning Layer    │
-│                 │       │                        │       │                        │
-│ • Natural Lang  │       │ • Safety Dashboard     │       │ • watsonx.ai / Granite │
-│   Inquiries     │       │ • CTD Readiness View   │       │ • Signal Explanations  │
-│ • Contextual Q&A│       │ • Visual Gap Reports   │       │ • Remediation Synthesis│
-└─────────────────┘       └────────────────────────┘       └────────────────────────┘
+┌──────────────────────────────────────────────────────────────────────────────────┐
+│                   PharmSignals — Regulatory Compliance Hub                       │
+├─────────────────────────────────────────┬────────────────────────────────────────┤
+│   MODE 1: SIGNAL DETECTION & PV         │   MODE 2: ICH M4 SUBMISSION READINESS  │
+│   • openFDA FAERS Data Ingestion (M1)   │   • Candidate Dossier Ingest (PDF/Text)│
+│   • Evans PRR & Chi² Statistics (M2)    │   • ICH M4 Ground-Truth RAG Engine     │
+│   • Adverse Event Bubble Chart          │   • Module 1–5 Completeness Scoring    │
+│   • 2x2 Custom Table Calculator         │   • Priority Gap Matrix & Severity     │
+│   • Digital Twin Backtesting (M3)       │   • Grounded Remediation Roadmaps      │
+│   • VIOXX (+242d) & AVANDIA (+1205d)    │   • 1-Click Preset Audits (NDA/IND)    │
+└─────────────────────────────────────────┴────────────────────────────────────────┘
+                                     │
+                                     ▼
+        ┌────────────────────────────────────────────────────────────┐
+        │  IBM BOB AI COPILOT (Grounded Q&A & Remediation Guidance)  │
+        └────────────────────────────────────────────────────────────┘
 ```
 
 ---
 
-## Core Operational Stages
+## 2. Target Users
 
-### 1. Data Ingestion & Normalization
-- **Safety Data**: Ingests tabular adverse-event reporting records (e.g., patient demographics, suspect medications, concomitant drugs, adverse event terms, reporting dates).
-- **Dossier Structure**: Ingests Common Technical Document (CTD) folder hierarchies, file manifests, and metadata describing document placement across Modules 1 through 5.
-
-### 2. Safety Signal Detection Engine
-- **Event Clustering**: Employs semantic and group-based clustering to aggregate clinically associated adverse reactions that might otherwise be dispersed across multiple MedDRA preferred terms.
-- **Emerging Pattern Recognition**: Analyzes reporting frequency trends over time to identify sudden surges in adverse event reporting for specific drug classes.
-- **Proportional Reporting Ratio (PRR) Calculation**: Evaluates disproportionate reporting by computing:
-  $$\text{PRR} = \frac{a / (a + b)}{c / (c + d)}$$
-  where:
-  - $a$ = Reports of target event for target drug
-  - $b$ = Reports of other events for target drug
-  - $c$ = Reports of target event for other drugs
-  - $d$ = Reports of other events for other drugs
-- **Disproportionality Thresholds**: Flags drug-event associations that meet standard pharmacovigilance criteria (e.g., $\text{PRR} \ge 2$, $\text{Chi-Square} \ge 4$, case count $a \ge 3$).
-
-### 3. Regulatory Submission Readiness Engine
-- **ICH M4 Structure Inspection**: Recursively checks dossier contents against expected ICH M4 module structures (Modules 1 to 5).
-- **Module-Wise & Overall Readiness Scoring**: Computes objective completion metrics:
-  $$\text{Readiness Score} = \left( \frac{\text{Validated Mandatory Sections}}{\text{Total Expected Mandatory Sections}} \right) \times 100\%$$
-- **Gap & Severity Diagnostics**: Categorizes missing or malformed sections into distinct severity tiers (Critical, Major, Minor) to help teams prioritize remediation.
-
-### 4. AI Reasoning & Explanation Layer (IBM watsonx.ai / Granite)
-- **Signal Narratives**: Transforms raw statistical outputs (PRR scores, chi-square, temporal spikes) into coherent, human-readable explanations detailing *why* an event was flagged.
-- **Remediation Action Plans**: Synthesizes identified CTD gaps into step-by-step document compilation recommendations for regulatory affairs personnel.
-
-### 5. Unified User Experience & IBM Bob Copilot
-- **Interactive Dashboards**: Role-tailored dashboards featuring statistical charts, disproportionality heatmaps, and readiness status gauges.
-- **IBM Bob AI Copilot**: An intelligent conversational agent that maintains domain context, allowing users to query signal triggers, compare adverse events, evaluate dossier readiness, and explore remediation pathways in natural language.
+- **Pharmacovigilance (PV) Scientists**: Execute real-time disproportionality surveillance and triage flagged adverse event signals.
+- **Regulatory Affairs Directors**: Audit candidate CTD dossiers against ICH M4 requirements and prioritize gap remediations.
+- **Medical Safety Officers**: Investigate clinical causality and evaluate historical trajectory behaviors.
+- **Submission Project Managers**: Track module-by-module filing readiness scores before statutory agency submission.
 
 ---
 
-## Three-Tier Decision Framework
+## 3. Signal Detection & PV Analytics (Mode 1)
 
-To ensure maximum safety, reliability, and regulatory trust, the platform clearly delineates between automated analytics, AI assistance, and expert human judgment:
+### Mathematical Methodology
+PharmSignals evaluates disproportionality using the standard Evans methodology (Evans et al., 2001) across 2×2 contingency matrices:
+
+$$\text{PRR} = \frac{a / (a + b)}{c / (c + d)}$$
+
+where:
+- $a$ = Case reports with target drug and target adverse reaction
+- $b$ = Case reports with target drug and other adverse reactions
+- $c$ = Case reports with other drugs and target adverse reaction
+- $d$ = Case reports with other drugs and other adverse reactions
+
+### Pearson Chi-Square ($\chi^2$) with Yates' Continuity Correction
+$$\chi^2 = \frac{N (|ad - bc| - N/2)^2}{(a + b)(c + d)(a + c)(b + d)}$$
+where $N = a + b + c + d$.
+
+### 95% Log-Normal Confidence Intervals
+$$\text{Lower / Upper CI} = \exp\left( \ln(\text{PRR}) \pm 1.96 \sqrt{\frac{1}{a} - \frac{1}{a+b} + \frac{1}{c} - \frac{1}{c+d}} \right)$$
+
+### Regulatory Signal Criteria
+- **`SIGNAL` (Confirmed)**: $\text{PRR} \ge 2.0$, $\chi^2 \ge 4.0$, and Case Count $a \ge 3$.
+- **`WEAK_SIGNAL`**: Borderline PRR ($\ge 1.5$) or marginal Chi-Square ($\ge 2.0$).
+- **`NOISE`**: Does not satisfy statistical disproportionality thresholds.
+
+---
+
+## 4. Digital-Twin Historical Backtesting (M3)
+
+PharmSignals implements longitudinal monthly walk-forward backtesting using historical openFDA FAERS data artifacts:
+- **Vioxx (Rofecoxib)**: Evaluates the myocardial infarction signal across monthly slices starting in 2004, identifying initial signal emergence on **January 31, 2004** ($\text{PRR} = 2.03, \chi^2 = 7.15, a = 12$). This represents **242 days (~8 months)** of early detection lead time before the FDA market withdrawal on September 30, 2004.
+- **Avandia (Rosiglitazone)**: Reconstructs the congestive heart failure signal, demonstrating **1,205 days** of early detection lead time prior to the FDA Boxed Warning.
+- **Baycol (Cerivastatin)**: Transparently identifies openFDA electronic reporting boundaries (`DATA_UNAVAILABLE_PRE_WITHDRAWAL`), ensuring zero data hallucination for legacy pre-2004 events.
+
+---
+
+## 5. Dossier Submission Readiness Checker (Mode 2)
+
+### ICH M4 Ground-Truth RAG Architecture
+PharmSignals indexes structural requirements across all five CTD modules:
+- **Module 1**: Regional Administrative Information (1.1–1.5)
+- **Module 2**: CTD Summaries & Overviews (2.1–2.7)
+- **Module 3**: Quality / CMC (3.1–3.3)
+- **Module 4**: Nonclinical Study Reports (4.1–4.3)
+- **Module 5**: Clinical Study Reports (5.1–5.4)
+
+### Quantitative Completeness Scoring
+$$\text{Readiness Score} = \left( \frac{\text{Validated Sections Count}}{\text{Total Required Sections Count}} \right) \times 100\%$$
+
+### Gap Severity Classification
+- **`CRITICAL`**: Missing mandatory summaries or clinical efficacy reports (e.g. Module 2.4, 5.3.5) that represent direct grounds for Refusal-to-File (RTF).
+- **`MAJOR`**: Incomplete study reports or analytical validation protocols.
+- **`STANDARD`**: Minor formatting or supporting documentation items.
+
+---
+
+## 6. Three-Tier Decision Framework
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────────┐
-│ 1. Automated Analytical Checks (Deterministic)                              │
-│    • Mathematical PRR & Chi-Square computations                             │
+│ 1. Deterministic Analytical Layer (Code-Enforced)                           │
+│    • Vectorized PRR, Chi-Square, and log-normal CI computations             │
 │    • Exact ICH M4 structural rule verification                              │
-│    • Missing document presence/absence detection                            │
+│    • In-memory section extraction and completeness percentages              │
 ├─────────────────────────────────────────────────────────────────────────────┤
-│ 2. AI-Assisted Explanation & Copilot (Augmentative)                         │
-│    • Contextual summaries of statistical alerts                             │
-│    • Prioritized gap remediation synthesis                                  │
-│    • Natural-language interaction via IBM Bob Copilot                       │
+│ 2. Grounded AI Reasoning & Copilot (Augmentative)                           │
+│    • Contextual clinical explanations for statistical alerts                │
+│    • Prioritized regulatory remediation roadmaps                            │
+│    • Conversational domain Q&A via IBM Bob AI Copilot                       │
 ├─────────────────────────────────────────────────────────────────────────────┤
-│ 3. Human Review & Qualified Judgment (Authoritative)                        │
-│    • Pharmacovigilance medical review and clinical causality assessment     │
+│ 3. Qualified Human Oversight (Authoritative)                                │
+│    • Medical review and clinical causality assessment                       │
 │    • Final regulatory sign-off on submission dossiers                       │
-│    • Health authority interaction and formal filing decisions               │
+│    • Statutory health authority communications and filing decisions         │
 └─────────────────────────────────────────────────────────────────────────────┘
 ```
 
-> **Important**: The platform is explicitly built to augment, support, and accelerate the work of qualified pharmacovigilance and regulatory professionals. It does not replace clinical judgment or statutory regulatory responsibilities.
+---
+
+## 7. What Makes PharmSignals Different
+
+1. **Zero Dummy Data**: Every displayed analytical metric originates directly from real openFDA FAERS files or deterministic ICH M4 rule engines.
+2. **Unified Lifecycle View**: Correlates post-market safety signal detection with pre-market dossier compliance in one workspace.
+3. **Reproducible 1-Command Startup**: Starts both backend (FastAPI) and frontend (Next.js) concurrently with `npm run dev`.
+4. **Reliable Offline Operation**: Built-in deterministic fallback engines guarantee complete functionality even without external cloud LLM credentials.

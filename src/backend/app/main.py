@@ -1,4 +1,4 @@
-﻿"""FastAPI Application Entry Point.
+"""FastAPI Application Entry Point.
 
 Drug Safety Signal Detector & Regulatory Submission Readiness Checker
 """
@@ -6,6 +6,7 @@ Drug Safety Signal Detector & Regulatory Submission Readiness Checker
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from app.api.v1.endpoints.copilot import router as copilot_router
 from app.api.v1.endpoints.m4_checker import router as m4_router
 from app.api.v1.endpoints.signal_detection import router as signals_router
 
@@ -35,6 +36,7 @@ async def root():
         "modules": {
             "m1_m2_m3": "/api/v1/signals - Signal Detection",
             "m4": "/api/v1/m4 - CTD Readiness Checker",
+            "copilot": "/api/v1/copilot - IBM Bob AI Copilot",
         },
     }
 
@@ -55,3 +57,4 @@ async def health_check():
 # Include API Routers
 app.include_router(m4_router, prefix="/api/v1")
 app.include_router(signals_router, prefix="/api/v1")
+app.include_router(copilot_router, prefix="/api/v1")

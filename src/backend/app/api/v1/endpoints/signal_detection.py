@@ -1,10 +1,18 @@
 """FastAPI Endpoints for Modules M1, M2, M3: Signal Detection (Real OpenFDA Pipeline)."""
 
 from typing import Any, Dict, List, Optional
-from fastapi import APIRouter, HTTPException, Query, status
+from fastapi import APIRouter, Body, HTTPException, Query, status
+from pydantic import BaseModel, Field
 
 from app.m1_faers.faers_ingest import run_m1_pipeline
-from app.m2_prr.prr_engine import calculate_prr, classify_signal, get_signals_only
+from app.m2_prr.prr_engine import (
+    calculate_prr,
+    classify_signal,
+    get_signals_only,
+    DEFAULT_PRR_THRESHOLD,
+    DEFAULT_CHI_SQUARE_THRESHOLD,
+    DEFAULT_MIN_CASES,
+)
 from app.m3_digital_twin.trajectory import (
     generate_prr_trajectory,
     run_vioxx_backtest,
@@ -16,6 +24,41 @@ router = APIRouter(prefix="/signals", tags=["Module M2: Signal Detection"])
 # Cache M1+M2 results at module level
 _cached_results: Optional[List[Dict[str, Any]]] = None
 _cached_drugs: Optional[List[str]] = None
+
+
+class CustomPRRRequest(BaseModel):
+    drug_name: str = Field(default="CANDIDATE-DRUG", description="Suspect drug name")
+    event_term: str = Field(default="SUSPECTED REACTION", description="Target adverse event term")
+    # Supports both (a, b, c, d) 2x2 cells OR (n_de, n_dt, n_et, n_total) margins
+    a: Optional[float] = Field(default=None, description="Cell a: Drug + Event count")
+    b: Optional[float] = Field(default=None, description="Cell b: Drug + Other Events count")
+    c: Optional[float] = Field(default=None, description="Cell c: Other Drugs + Event count")
+    d: Optional[float] = Field(default=None, description="Cell d: Other Drugs + Other Events count")
+    a_drug_event: Optional[float] = Field(default=None, description="Alias for cell a")
+    b_drug_other_events: Optional[float] = Field(default=None, description="Alias for cell b")
+    c_other_drugs_event: Optional[float] = Field(default=None, description="Alias for cell c")
+    d_other_drugs_other_events: Optional[float] = Field(default=None, description="Alias for cell d")
+    n_drug_event: Optional[float] = Field(default=None, description="Alias for cell a")
+    n_drug_total: Optional[float] = Field(default=None, description="Total reports for drug (a + b)")
+    n_event_total: Optional[float] = Field(default=None, description="Total reports for event (a + c)")
+    n_total: Optional[float] = Field(default=None, description="Grand total reports (a + b + c + d)")
+    prr_threshold: float = Field(default=DEFAULT_PRR_THRESHOLD, description="PRR signal threshold")
+    chi_square_threshold: float = Field(default=DEFAULT_CHI_SQUARE_THRESHOLD, description="Chi-square signal threshold")
+    min_cases: int = Field(default=DEFAULT_MIN_CASES, description="Minimum case count threshold")
+
+
+class CustomPRRResponse(BaseModel):
+    drug_name: str
+    event_term: str
+    n_drug_event: int
+    n_drug_total: int
+    n_event_total: int
+    n_total: int
+    contingency_table: Dict[str, int]
+    metrics: Dict[str, float]
+    signal_status: str
+    is_signal: bool
+    explanation: str
 
 
 def _get_prr_results() -> List[Dict[str, Any]]:
@@ -121,6 +164,103 @@ async def get_signal_summary() -> Dict[str, Any]:
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post(
+    "/calculate",
+    response_model=CustomPRRResponse,
+    summary="Calculate PRR & Chi-Square on Custom 2x2 Contingency Table",
+    description="Calculates Evans Proportional Reporting Ratio and Pearson Chi-Square for custom user-provided case numbers or 2x2 cell values.",
+)
+async def calculate_custom_prr(
+    payload: CustomPRRRequest = Body(...),
+) -> CustomPRRResponse:
+    """Calculates PRR, chi-square, confidence intervals, and signal status on custom user inputs."""
+    try:
+        # Resolve cell 'a' / n_drug_event
+        a_val = payload.a if payload.a is not None else (
+            payload.a_drug_event if payload.a_drug_event is not None else (
+                payload.n_drug_event if payload.n_drug_event is not None else 0.0
+            )
+        )
+        b_val = payload.b if payload.b is not None else payload.b_drug_other_events
+        c_val = payload.c if payload.c is not None else payload.c_other_drugs_event
+        d_val = payload.d if payload.d is not None else payload.d_other_drugs_other_events
+
+        # Resolve margins
+        if payload.n_drug_total is not None and payload.n_event_total is not None and payload.n_total is not None:
+            n_dt = payload.n_drug_total
+            n_et = payload.n_event_total
+            n_tot = payload.n_total
+            b = max(n_dt - a_val, 0.0)
+            c = max(n_et - a_val, 0.0)
+            d = max(n_tot - n_dt - c, 0.0)
+            a = a_val
+        elif b_val is not None and c_val is not None and d_val is not None:
+            a = a_val
+            b = b_val
+            c = c_val
+            d = d_val
+            n_dt = a + b
+            n_et = a + c
+            n_tot = a + b + c + d
+        else:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Must provide either (a, b, c, d) cells or (n_drug_event, n_drug_total, n_event_total, n_total) margins.",
+            )
+
+        stats_res = calculate_prr(n_drug_event=a, n_drug_total=n_dt, n_event_total=n_et, n_total=n_tot)
+        status_val = classify_signal(
+            prr=stats_res["prr"],
+            chi_square=stats_res["chi_square"],
+            n_drug_event=int(a),
+            prr_threshold=payload.prr_threshold,
+            chi_sq_threshold=payload.chi_square_threshold,
+            min_cases=payload.min_cases,
+        )
+
+        is_sig = (status_val == "SIGNAL")
+
+        if is_sig:
+            explanation = (
+                f"CONFIRMED SAFETY SIGNAL: PRR = {stats_res['prr']:.2f} (≥ {payload.prr_threshold}), "
+                f"Chi² = {stats_res['chi_square']:.2f} (≥ {payload.chi_square_threshold}, p = {stats_res['p_value']:.4f}), "
+                f"and case count N = {int(a)} (≥ {payload.min_cases}). Disproportionate reporting confirmed."
+            )
+        elif status_val == "WEAK_SIGNAL":
+            explanation = (
+                f"WEAK / BORDERLINE SIGNAL: PRR = {stats_res['prr']:.2f}, Chi² = {stats_res['chi_square']:.2f}. "
+                f"Meets elevated PRR trend but marginal on statistical thresholds or sample size."
+            )
+        else:
+            explanation = (
+                f"NO SIGNAL / NOISE: PRR = {stats_res['prr']:.2f}, Chi² = {stats_res['chi_square']:.2f}, cases = {int(a)}. "
+                f"Does not satisfy standard pharmacovigilance disproportionality thresholds."
+            )
+
+        return CustomPRRResponse(
+            drug_name=payload.drug_name.upper(),
+            event_term=payload.event_term.upper(),
+            n_drug_event=int(a),
+            n_drug_total=int(n_dt),
+            n_event_total=int(n_et),
+            n_total=int(n_tot),
+            contingency_table={
+                "a_drug_event": int(a),
+                "b_drug_other_events": int(b),
+                "c_other_drugs_event": int(c),
+                "d_other_drugs_other_events": int(d),
+            },
+            metrics=stats_res,
+            signal_status=status_val,
+            is_signal=is_sig,
+            explanation=explanation,
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Custom PRR calculation error: {str(e)}")
 
 
 @router.get(

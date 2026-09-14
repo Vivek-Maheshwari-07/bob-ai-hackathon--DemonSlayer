@@ -1,7 +1,7 @@
 # Submission Details
 
 team:
-  name: "team-name"
+  name: "Demon Slayer"
   track: "AI"
   lead:
     name: "Vivek Maheshwari"
@@ -36,4 +36,4 @@ submission:
     - "Overall submission-readiness percentage and module-wise readiness scoring (Modules 1-5)"
     - "Critical missing document/section identification and gap report generation"
     - "IBM Bob AI Copilot for natural-language safety signal and regulatory readiness investigation"
-  status: "Implemented core analytical pipeline with real openFDA FAERS data & working ICH M4 regulatory readiness checker"
+  status: "Completed end-to-end M1-M5 pipeline with real openFDA FAERS data, interactive PRR analytics, ICH M4 readiness RAG, and IBM Bob AI Copilot"

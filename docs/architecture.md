@@ -4,29 +4,43 @@
 
 ## High-Level System Architecture
 
-The following diagram illustrates the target system architecture, highlighting component interactions, data processing pipelines, AI reasoning layers, and the integration of IBM Bob Copilot:
+The following diagram illustrates the complete system architecture, highlighting component interactions, data processing pipelines, analytical compute engines, and the integration of the IBM Bob Copilot:
 
 ```mermaid
 flowchart TD
-    U[User] --> F[React / Next.js Frontend]
+    U[Safety & Regulatory Users] --> F[PharmSignals Enterprise Frontend (Next.js 14)]
 
-    F --> API[FastAPI Backend]
+    subgraph Presentation_Layer [Presentation Layer (Module M5)]
+        F --> V1[Mode 1: Signal Detection & Bubble Chart]
+        F --> V2[Historical Longitudinal Backtesting View]
+        F --> V3[Mode 2: ICH M4 Submission Readiness View]
+        F --> COPILOT[Docked IBM Bob AI Copilot Drawer]
+    end
 
-    API --> DATA[Data Processing Layer]
-    API --> DB[(PostgreSQL)]
+    F --> API[FastAPI Application Backend (Port 8000)]
 
-    DATA --> AE[Adverse Event Analysis]
-    AE --> SIG[Safety Signal Detection]
-    SIG --> PRR[PRR / Emerging Signal Analysis]
+    subgraph Backend_Services [Backend Analytical & RAG Engines]
+        API --> M1[Module M1: FAERS Ingestion & Normalization]
+        M1 --> M2[Module M2: Evans PRR & Chi-Square Engine]
+        M2 --> M3[Module M3: Digital Twin Time-Series Trajectory]
+        
+        API --> M4[Module M4: ICH M4 CTD Readiness Engine]
+        M4 --> KB[(Authoritative ICH M4 Knowledge Base Modules 1–5)]
+        M4 --> RAG[Hybrid Search & Completeness Scorer]
+        
+        API --> BOB[IBM Bob Copilot Reasoning Engine]
+    end
 
-    API --> CTD[CTD Readiness Checker]
-    CTD --> GAP[Gap & Module Report]
+    subgraph AI_Reasoning [AI & Grounding Layer]
+        RAG --> LLM[Google Gemini 2.5 Flash / IBM watsonx.ai]
+        BOB --> LLM
+        RAG --> FALLBACK[Deterministic Regulatory Fallback Engine]
+        BOB --> FALLBACK
+    end
 
-    API --> AI[watsonx.ai / Granite]
-    AI --> BOB[IBM Bob Copilot]
-
-    SIG --> F
-    GAP --> F
+    M2 --> F
+    M3 --> F
+    M4 --> F
     BOB --> F
 ```
 
@@ -34,90 +48,85 @@ flowchart TD
 
 ## Component Responsibilities
 
-### 1. Presentation Layer (Frontend)
-- **Framework**: React / Next.js
+### 1. Presentation Layer (Frontend — Module M5)
+- **Framework**: React 18, Next.js 14 (App Router), TypeScript, Tailwind CSS, Recharts
+- **Design System**: White-first clinical enterprise layout (PharmSignals) with high information density, compact cards, and accessible semantic colors.
 - **Responsibilities**:
-  - Delivers an intuitive, responsive interface with dedicated views for the **Safety Dashboard**, **CTD Readiness Checker**, and docked **IBM Bob Copilot**.
-  - Renders statistical visualizations (adverse event distributions, PRR disproportionality heatmaps, timeline trends) using charting libraries (Recharts / Chart.js).
-  - Provides interactive CTD dossier inspection trees and downloadable gap assessment reports.
-  - Manages real-time conversational streaming with the IBM Bob Copilot service.
+  - **Adverse Event Bubble Chart**: Plots Proportional Reporting Ratio (PRR) vs. Case Count ($a$) with a critical reference line at $\text{PRR} = 2.0$.
+  - **High-Priority Signals Table**: Ranked tabular view of confirmed FAERS safety signals with instant triage actions.
+  - **2×2 Interactive Calculator**: Real-time contingency matrix calculation for candidate drug-event pairs.
+  - **Historical Backtesting Station**: Reconstructs monthly PRR trajectories across historical benchmarks (Vioxx, Avandia, Baycol).
+  - **Submission Readiness View**: Circular readiness gauge, horizontal CTD Module 1–5 progress meters, and filterable priority regulatory gap matrix.
+  - **IBM Bob Copilot Drawer**: Docked conversational assistant for natural-language safety and regulatory inquiries.
 
-### 2. Application API Layer (Backend)
-- **Framework**: Python / FastAPI
+### 2. Application API Layer (Backend — FastAPI)
+- **Framework**: Python 3.10+, FastAPI, Uvicorn, Pydantic v2, HTTPX
 - **Responsibilities**:
-  - Exposes RESTful endpoints for data ingestion, analytical execution, dossier inspection, and copilot dialogue.
-  - Implements input validation, schema enforcement, and structured error handling.
-  - Orchestrates analytical pipelines, database queries, and AI model invocations.
+  - Exposes RESTful endpoints for signal summary, custom 2×2 calculations, backtest trajectories, CTD dossier evaluations (text, JSON, PDF), and conversational copilot inquiries.
+  - Enforces schema validation and structured error handling.
+  - Manages stateless compute with sub-second response times.
 
-### 3. Data Processing & Analytical Engines
-- **Adverse Event & PRR Analysis Engine**:
-  - Ingests raw adverse-event records, performs grouping/clustering, and computes 2x2 contingency tables for drug-event pairs.
-  - Calculates Proportional Reporting Ratios (PRR), Chi-Square statistics, and 95% confidence intervals.
-  - Evaluates time-series trends to flag sudden shifts in reporting rates.
-- **CTD Readiness & Gap Checker**:
-  - Traverses submission folder structures against standard ICH M4 schemas (Modules 1–5).
-  - Evaluates section presence, completeness, file naming conventions, and metadata validity.
-  - Computes granular module scores and synthesizes prioritized gap reports.
+### 3. Data Processing & Analytical Engines (Modules M1, M2, M3)
+- **FAERS Ingest & Normalization Engine (M1)**:
+  - Ingests real openFDA FAERS adverse event datasets, performs uppercase MedDRA term normalization, and constructs 2×2 contingency tables ($a, b, c, d$).
+- **Evans PRR Signal Detection Engine (M2)**:
+  - Computes Proportional Reporting Ratios (PRR), Pearson Chi-Square ($\chi^2$), $p$-values, and log-normal 95% Confidence Intervals:
+    $$\text{PRR} = \frac{a / (a + b)}{c / (c + d)}$$
+  - Enforces standard regulatory criteria ($\text{PRR} \ge 2.0$, $\chi^2 \ge 4.0$, $a \ge 3$) to classify associations as `SIGNAL`, `WEAK_SIGNAL`, or `NOISE`.
+- **Digital Twin Historical Backtest Engine (M3)**:
+  - Executes longitudinal monthly walk-forward backtesting over openFDA FAERS records.
+  - Demonstrates **+242 days** of early detection lead time for Vioxx (Jan 31, 2004 vs. Sept 30, 2004 withdrawal) and **+1,205 days** for Avandia, while transparently identifying electronic record boundaries for Baycol (`DATA_UNAVAILABLE_PRE_WITHDRAWAL`).
 
-### 4. Persistence Layer
-- **Database**: PostgreSQL
-- **Responsibilities**:
-  - Stores normalized adverse-event datasets, drug registries, and historical signal metrics.
-  - Persists ICH M4 validation rule sets, submission audit records, and user session contexts.
+### 4. Regulatory Readiness & RAG Engine (Module M4)
+- **ICH M4 CTD Knowledge Base**:
+  - Authoritative repository of structural requirements across Module 1 (Administrative), Module 2 (Summaries), Module 3 (Quality/CMC), Module 4 (Nonclinical), and Module 5 (Clinical).
+- **Hybrid Retrieval & Completeness Scorer**:
+  - Evaluates candidate dossier sections, matches against verified ICH guidelines, calculates module-wise and overall completeness percentages, and compiles prioritized gap reports with actionable remediation advice.
 
 ### 5. AI Reasoning & IBM Bob Copilot Layer
-- **IBM watsonx.ai / Granite**: Foundation models providing natural-language generation of explainable safety alerts and gap remediation summaries.
-- **IBM Bob Integration**: Conversational orchestrator providing context-aware, domain-specific Q&A across active safety analytics and CTD readiness data.
+- **Conversational Orchestrator**: Provides context-aware, domain-specific Q&A across active safety analytics, PRR methodology, and CTD readiness data.
+- **Deterministic Offline Fallback**: Guarantees zero hallucinations and reliable responses even without external API keys.
 
 ---
 
 ## End-to-End Data Flow
 
-1. **User Action**: The user uploads an adverse event dataset or points the system to a CTD submission dossier.
-2. **API Ingestion**: FastAPI receives the payload, validates the format, and dispatches it to the processing pipeline.
-3. **Analytical Execution**:
-   - For safety data: Pandas calculates frequencies, clusters events, and computes PRR metrics.
-   - For CTD dossiers: The readiness checker audits directory trees against ICH M4 specifications and calculates completeness percentages.
-4. **AI Context Synthesis**: Analytical summaries are passed to IBM watsonx.ai to generate human-readable explanations and remediation steps.
-5. **Dashboard Rendering**: The React frontend receives structured metrics, displaying visual charts, readiness indicators, and gap matrices.
-6. **Copilot Interaction**: The user asks follow-up questions (e.g., *"Why was this signal flagged?"* or *"What is missing in Module 4?"*); IBM Bob accesses context to deliver instant, explainable answers.
+```mermaid
+sequenceDiagram
+    autonumber
+    actor User as Safety / Regulatory Specialist
+    participant UI as Next.js Frontend (Port 3000)
+    participant API as FastAPI Backend (Port 8000)
+    participant M1M2 as M1/M2/M3 Signal Engine
+    participant M4 as M4 ICH M4 Engine
+    participant Bob as IBM Bob Copilot
+
+    User->>UI: Selects "Run Signal Scan" or custom 2x2 inputs
+    UI->>API: POST /api/v1/signals/calculate or GET /api/v1/signals/summary
+    API->>M1M2: Compute Evans PRR, Chi-Square, 95% CI
+    M1M2-->>API: PRR statistics & signal classification
+    API-->>UI: Structured signal payload
+    UI-->>User: Renders Bubble Chart & High-Priority Signals Table
+
+    User->>UI: Selects candidate dossier preset (Vioxx NDA 21-042)
+    UI->>API: POST /api/v1/m4/check
+    API->>M4: Match sections vs. ICH M4 Knowledge Base (Modules 1-5)
+    M4-->>API: Overall score, module completeness %, priority gaps
+    API-->>UI: Gap report payload with citations
+    UI-->>User: Renders Circular Readiness Gauge & Gap Matrix
+
+    User->>UI: Inquires "Why was Vioxx flagged for MI?" via Bob Copilot
+    UI->>API: POST /api/v1/copilot/query
+    API->>Bob: Grounded domain synthesis with safety/CTD context
+    Bob-->>API: Grounded narrative response + suggested follow-ups
+    API-->>UI: Streamed message in Copilot drawer
+    UI-->>User: Displays explainable clinical response
+```
 
 ---
 
-## Role of AI and IBM Bob
+## Security & Data Privacy Considerations
 
-| AI Capability | Technology | Operational Function |
-|---|---|---|
-| **Signal Explainability** | IBM watsonx.ai / Granite | Translates numeric PRR scores, case counts, and clustering outputs into clinical rationale narratives. |
-| **Gap Remediation Planning** | IBM watsonx.ai / Granite | Converts missing-section lists into actionable, step-by-step submission remediation guidance. |
-| **Conversational Copilot** | IBM Bob Integration | Serves as a load-bearing assistant enabling natural-language queries across active dashboard data and dossier reports. |
-
----
-
-## Security & Compliance Considerations
-
-- **Data Privacy & Redaction**: Adverse event records and clinical study documents must be scrubbed of Protected Health Information (PHI) / Personally Identifiable Information (PII) before ingestion.
-- **Zero Real Secrets in Code**: All API keys, database connection strings, and endpoints are configured strictly via environment variables (`.env`).
-- **Role-Based Access**: Access controls ensure only authorized personnel can view sensitive clinical submission data or modify compliance rule sets.
-- **Audit Logging**: Immutable logging of all dossier validation checks and safety signal triage decisions.
-
----
-
-## Scalability Considerations
-
-- **Asynchronous Processing**: FastAPI's asynchronous architecture handles concurrent analytical workloads efficiently.
-- **Chunked Data Operations**: Large adverse event datasets are processed using vectorized Pandas routines and chunked database queries.
-- **Stateless Services**: The API and copilot services are designed to be stateless, facilitating horizontal scaling and containerization.
-
----
-
-## Implementation Status
-
-| Component | Status | Notes |
-|---|---|---|
-| Repository & Documentation Skeleton | Complete | Ready for hackathon submission verification |
-| Source Folder Hierarchy (`src/frontend`, `src/backend`) | Scaffolded | Directory layout and dependency manifests prepared |
-| Analytical Engines (M1-M3 FAERS PRR & Digital Twin) | Implemented — real openFDA data | Verified openFDA data artifacts, Evans PRR, Chi², and walk-forward backtesting |
-| CTD Regulatory Readiness Checker (M4) | Implemented | ICH M4 completeness validation, gap detection, and deterministic fallback |
-| IBM Bob & watsonx.ai Integration | In Planning / MVP Phase | Prompts, context schemas, and copilot endpoints designed |
-| User Interface Components | Scaffolded / Interactive | Next.js dashboard with live signal detection and CTD readiness views |
+1. **Local-First Processing**: Sensitive clinical data and candidate dossiers are processed in-memory without persistent external transmission.
+2. **Deterministic Fallback**: Offline expert rule engines ensure full functionality without requiring external cloud LLM connections.
+3. **Zero Secrets in Source**: All API credentials reside in local environment files (`.env`) excluded from version control.

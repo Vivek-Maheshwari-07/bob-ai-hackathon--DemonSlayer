@@ -1,72 +1,175 @@
 # Setup & Installation Guide
 
-This guide details the prerequisites, environment setup, and development workflow for the **Drug Safety Signal Detector & Regulatory Submission Readiness Checker**.
+This guide details the prerequisites, environment setup, and verification workflow for **PharmSignals** ("Drug Safety Signal Detector & Regulatory Submission Readiness Checker" — Problem Statement P2, IBM Bobathon 2026).
 
 ---
 
-## Prerequisites
+## 1. System Requirements & Prerequisites
 
-Ensure the following tools and services are available on your development system:
+Ensure the following tools and runtimes are installed on your development machine:
 
-- **Git**: For source control and version management.
-- **Python**: Required for the FastAPI backend and data analysis services (Python 3.10+ recommended).
-- **Node.js & npm / yarn / pnpm**: Required for the Next.js frontend application (Node.js LTS recommended).
-- **PostgreSQL**: Relational database engine for data persistence and audit logging.
-- **IBM watsonx.ai & IBM Bob Access**: API credentials and project identifiers for AI reasoning and copilot capabilities.
+| Component | Required Version | Verification Command | Notes |
+|---|---|---|---|
+| **Git** | 2.30+ | `git --version` | Required for source control |
+| **Node.js** | 18 LTS or higher (tested on Node 20) | `node --version` | Required for frontend & process runner |
+| **npm** | 9.0+ | `npm --version` | Node package manager |
+| **Python** | 3.10+ (tested on Python 3.11 & 3.13) | `python --version` | Required for FastAPI backend & statistical compute |
+| **OS** | Windows 10/11, macOS, or Linux | N/A | Windows PowerShell and CMD fully supported |
 
 ---
 
-## Repository Setup
+## 2. Quickstart: One-Command Full Stack Startup (Recommended)
 
-1. **Clone the Repository**:
+From the project root directory:
+
+```bash
+# Step 1: Install root launcher dependencies
+npm install
+
+# Step 2: Install backend Python dependencies
+pip install -r src/backend/requirements.txt
+
+# Step 3: Install frontend dependencies
+npm install --prefix src/frontend
+
+# Step 4: Launch Backend & Frontend concurrently with ONE command
+npm run dev
+```
+
+### What Happens on `npm run dev`:
+- **FastAPI Backend**: Launches on `http://localhost:8000` (`python -m uvicorn app.main:app --app-dir src/backend --host 0.0.0.0 --port 8000 --reload`)
+- **Next.js Frontend**: Launches on `http://localhost:3000` (`npm run dev --prefix src/frontend`)
+- Streams unified prefixed logs (`[BACKEND]`, `[FRONTEND]`) to your terminal.
+- Press `Ctrl + C` once to cleanly terminate both processes.
+
+---
+
+## 3. Standalone Execution Options
+
+### Option A: Running Backend Independently
+
+```bash
+# Navigate to backend directory
+cd src/backend
+
+# (Optional) Create & activate Python virtual environment
+python -m venv .venv
+# On Windows (PowerShell): .\.venv\Scripts\Activate.ps1
+# On macOS/Linux: source .venv/bin/activate
+
+# Install dependencies
+pip install -r requirements.txt
+
+# Run the complete test suite (114 tests)
+python -m pytest
+
+# Start Uvicorn server
+uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+```
+
+Interactive OpenAPI Swagger documentation is available at `http://localhost:8000/docs`.
+
+### Option B: Running Frontend Independently
+
+```bash
+# Navigate to frontend directory
+cd src/frontend
+
+# Install dependencies
+npm install
+
+# Build production bundle (validates TypeScript types & static pages)
+npm run build
+
+# Start development server
+npm run dev
+```
+
+The user interface will be live at `http://localhost:3000`.
+
+---
+
+## 4. Environment Configuration
+
+Copy the configuration template:
+
+```bash
+# On Windows (PowerShell):
+Copy-Item src/.env.example src/.env
+
+# On macOS/Linux:
+cp src/.env.example src/.env
+```
+
+| Variable | Required | Default | Purpose |
+|---|---|---|---|
+| `NEXT_PUBLIC_API_BASE_URL` | No | `http://localhost:8000/api/v1` | Backend API URL for frontend communication |
+| `GEMINI_API_KEY` | No | *Empty* | Optional Google Gemini key for live LLM reasoning |
+| `WATSONX_API_KEY` | No | *Empty* | Optional IBM watsonx.ai foundation model key |
+| `WATSONX_PROJECT_ID` | No | *Empty* | Optional IBM watsonx.ai project identifier |
+
+> **Note**: The platform features a **100% deterministic offline fallback engine** when external LLM keys are omitted, guaranteeing zero hallucinations and full functionality for offline hackathon judging.
+
+---
+
+## 5. Verification & Health Check Endpoints
+
+Execute these verification commands from any terminal to confirm all subsystems are operational:
+
+1. **Backend Subsystem Health**:
    ```bash
-   git clone https://github.com/Vivek-Maheshwari-07/bob-ai-hackathon--your-team-name-.git
-   cd bob-ai-hackathon--your-team-name-
+   curl http://localhost:8000/api/v1/health
+   ```
+   *Response:* `{"status":"healthy","services":{"safety_engine":"ready","ctd_engine":"ready","bob_copilot":"ready"}}`
+
+2. **Signals Summary (M1/M2 Engine)**:
+   ```bash
+   curl http://localhost:8000/api/v1/signals/summary
+   ```
+   *Response:* `{"total_drug_event_pairs":300,"confirmed_signals":222,...}`
+
+3. **Vioxx Backtest Trajectory (M3 Engine)**:
+   ```bash
+   curl http://localhost:8000/api/v1/signals/backtest/VIOXX
+   ```
+   *Response:* `{"drug_name":"VIOXX","lead_time_days":242,...}`
+
+4. **Candidate CTD Dossier Presets (M4 Engine)**:
+   ```bash
+   curl http://localhost:8000/api/v1/m4/presets
    ```
 
-2. **Inspect Structure**:
-   ```bash
-   # Verify the top-level repository directories
-   ls -la
-   ```
+5. **Frontend Web UI**:
+   Open `http://localhost:3000` in Google Chrome, Edge, or Firefox.
 
 ---
 
-## Environment Configuration
+## 6. Running Automated Tests
 
-A template environment configuration file is provided in `src/.env.example`.
+Run the full automated test suite from the repository root:
 
-1. **Create Local Environment File**:
-   Copy the example file to `.env` inside `src/`:
-   ```bash
-   cp src/.env.example src/.env
-   ```
+```bash
+npm test
+```
+*(Equivalent to `python -m pytest src/backend`)*
 
-2. **Configure Variables**:
-   Update `src/.env` with your development database and IBM service credentials.
-
-> **IMPORTANT**: Never commit your `.env` file or any real API keys to the repository. The `.gitignore` file is configured to exclude all `.env` files automatically.
-
----
-
-## Current Project Status
-
-> **Notice for Hackathon Evaluators**:
-> The repository is currently in the **initial setup and MVP preparation phase**.
-> - The repository structure, documentation skeleton, schema designs, and configuration templates are fully prepared.
-> - Source code directories (`src/frontend/` and `src/backend/`) have been initialized with clean architectural skeletons.
-> - Step-by-step local development commands (`npm run dev`, `uvicorn app.main:app`) and automated test suites will be populated as the core analytical modules and interface components are progressively implemented.
+**Test Suite Coverage (114 Tests):**
+- `test_health.py`: Subsystem heartbeat & API status (2 tests)
+- `test_m1_faers.py`: FAERS data ingestion, cleaning & normalization (9 tests)
+- `test_m2_prr.py`: Evans PRR calculation, $\chi^2$, 95% CI & classification (13 tests)
+- `test_copilot_and_custom_calc.py`: Custom 2×2 calculation & IBM Bob Copilot (9 tests)
+- `test_m3_trajectory.py`: Vioxx (+242d), Avandia (+1205d), and Baycol backtests (7 tests)
+- `test_m4_*.py`: ICH M4 CTD RAG retriever, completeness scoring & gap matrices (74 tests)
 
 ---
 
-## Troubleshooting Guide
+## 7. Troubleshooting Guide
 
-The table below outlines common setup issues encountered during initial development and their resolutions:
-
-| Issue | Potential Cause | Resolution |
+| Problem | Probable Cause | Recommended Solution |
 |---|---|---|
-| **Python Virtual Environment Conflicts** | Multiple Python versions or conflicting packages | Create a clean virtual environment (`python -m venv .venv`) and activate it before installing dependencies. |
-| **Node.js Package Installation Failures** | Cache corruption or network timeouts | Clear npm cache (`npm cache clean --force`) or remove `node_modules` and re-run installation. |
-| **PostgreSQL Connection Errors** | Database service not running or invalid `DATABASE_URL` | Ensure PostgreSQL service is active locally or remotely, and verify username, password, port, and database name in `.env`. |
-| **Missing Environment Variables** | `.env` not loaded or key missing | Ensure all required variables specified in `src/.env.example` are defined in your local `src/.env`. |
-| **IBM watsonx.ai Authentication Errors** | Invalid API Key or expired Project ID | Confirm your API key and Project ID within the IBM Cloud / watsonx console and ensure correct endpoint URL. |
+| **Port 8000 or 3000 already in use** | A previous server instance is running in the background | Terminate the process holding the port: `npx kill-port 8000 3000` or restart your terminal. |
+| **`npm run dev` fails on Windows** | PowerShell execution policy restricts running scripts | Run `Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass` in PowerShell before launching. |
+| **`ModuleNotFoundError: No module named 'app'`** | Python ran without the backend app directory in path | Run Uvicorn with `--app-dir src/backend` or navigate directly into `cd src/backend`. |
+| **Frontend displays "Backend Offline"** | FastAPI server is not reachable on port 8000 | Verify backend is running via `curl http://localhost:8000/api/v1/health`. |
+| **Missing Python packages** | Dependencies were not installed in the active environment | Run `pip install -r src/backend/requirements.txt`. |
+| **Node build fails with PostCSS error** | Incompatible Tailwind plugin version | Ensure dependencies in `src/frontend/package.json` are installed via `npm install --prefix src/frontend`. |

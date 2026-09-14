@@ -5,6 +5,7 @@ from fastapi import APIRouter, Body, File, Form, HTTPException, Query, UploadFil
 
 from app.m4_rag.knowledge.loader import get_knowledge_base
 from app.m4_rag.pipeline import check_ctd_dossier, check_ctd_pdf
+from app.m4_rag.presets import PRESET_DOSSIERS
 from app.m4_rag.schema import (
     DossierOutlineInput,
     GapReportOutput,
@@ -142,6 +143,30 @@ async def evaluate_pdf_dossier(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Error processing PDF dossier: {str(e)}",
         )
+
+
+@router.get(
+    "/presets",
+    summary="List Pre-Packaged Candidate Dossiers",
+    description="Returns pre-packaged candidate CTD dossiers (Vioxx NDA 21-042, BOB-701 Oncology, Phase 1 IND) for quick 1-click auditing.",
+)
+async def get_preset_dossiers() -> Dict[str, Any]:
+    """Retrieves all pre-packaged candidate dossier presets."""
+    return PRESET_DOSSIERS
+
+
+@router.get(
+    "/presets/{preset_key}",
+    summary="Get Specific Pre-Packaged Candidate Dossier",
+)
+async def get_preset_dossier(preset_key: str) -> Dict[str, Any]:
+    """Retrieves a specific pre-packaged candidate dossier."""
+    if preset_key not in PRESET_DOSSIERS:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Preset '{preset_key}' not found. Available presets: {list(PRESET_DOSSIERS.keys())}",
+        )
+    return PRESET_DOSSIERS[preset_key]
 
 
 @router.get(
