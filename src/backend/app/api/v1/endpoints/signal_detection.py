@@ -1,25 +1,63 @@
-﻿"""FastAPI Endpoints for Modules M1, M2, M3: Signal Detection."""
+"""FastAPI Endpoints for Modules M1, M2, M3: Signal Detection (Real OpenFDA Pipeline)."""
 
 from typing import Any, Dict, List, Optional
 from fastapi import APIRouter, HTTPException, Query, status
 
 from app.m1_faers.faers_ingest import run_m1_pipeline
-from app.m2_prr.prr_engine import run_prr_analysis, get_signals_only
-from app.m3_digital_twin.trajectory import generate_prr_trajectory, run_vioxx_backtest
+from app.m2_prr.prr_engine import calculate_prr, classify_signal, get_signals_only
+from app.m3_digital_twin.trajectory import (
+    generate_prr_trajectory,
+    run_vioxx_backtest,
+    run_drug_backtest,
+)
 
 router = APIRouter(prefix="/signals", tags=["Module M2: Signal Detection"])
 
-# Cache M1+M2 results at module level (singleton for demo)
+# Cache M1+M2 results at module level
 _cached_results: Optional[List[Dict[str, Any]]] = None
 _cached_drugs: Optional[List[str]] = None
 
 
 def _get_prr_results() -> List[Dict[str, Any]]:
-    """Returns cached PRR results from M1+M2 pipeline."""
+    """Returns cached PRR results computed from real M1+M2 pipeline."""
     global _cached_results, _cached_drugs
     if _cached_results is None:
         m1 = run_m1_pipeline()
-        _cached_results = run_prr_analysis(m1["contingency_table"])
+        ct = m1["contingency_table"]
+        results = []
+        for _, row in ct.iterrows():
+            drug = str(row["drug_name"])
+            event = str(row["event_term"])
+            n_de = float(row.get("n_drug_event", 0))
+            n_d = float(row.get("n_drug_total", 0))
+            n_e = float(row.get("n_event_total", 0))
+            n = float(row.get("n_total", 0))
+
+            stats_result = calculate_prr(n_de, n_d, n_e, n)
+            status_val = classify_signal(
+                prr=stats_result["prr"],
+                chi_square=stats_result["chi_square"],
+                n_drug_event=int(n_de),
+            )
+
+            results.append({
+                "drug_name": drug,
+                "event_term": event,
+                "n_drug_event": int(n_de),
+                "n_drug_total": int(n_d),
+                "n_event_total": int(n_e),
+                "n_total": int(n),
+                "prr": stats_result["prr"],
+                "log_prr": stats_result["log_prr"],
+                "chi_square": stats_result["chi_square"],
+                "p_value": stats_result["p_value"],
+                "lower_ci_95": stats_result["lower_ci"],
+                "upper_ci_95": stats_result["upper_ci"],
+                "signal_status": status_val,
+            })
+
+        results.sort(key=lambda x: (-x["prr"], -x["n_drug_event"]))
+        _cached_results = results
         _cached_drugs = m1["drugs"]
     return _cached_results
 
@@ -88,7 +126,7 @@ async def get_signal_summary() -> Dict[str, Any]:
 @router.get(
     "/trajectory/{drug_name}/{event_term}",
     summary="PRR Trajectory for Drug-Event Pair",
-    description="Returns quarterly PRR trajectory data for a specific drug-event pair. Includes Vioxx backtest for ROFECOXIB/MYOCARDIAL INFARCTION.",
+    description="Returns time-series PRR trajectory data for a specific drug-event pair from real openFDA backtest data.",
 )
 async def get_prr_trajectory(drug_name: str, event_term: str) -> Dict[str, Any]:
     """Returns PRR time-series trajectory for a drug-event pair."""
@@ -100,6 +138,8 @@ async def get_prr_trajectory(drug_name: str, event_term: str) -> Dict[str, Any]:
             "trajectory": trajectory,
             "total_quarters": len(trajectory),
         }
+    except FileNotFoundError as e:
+        raise HTTPException(status_code=404, detail=str(e))
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -108,14 +148,31 @@ async def get_prr_trajectory(drug_name: str, event_term: str) -> Dict[str, Any]:
     "/vioxx-backtest",
     summary="Vioxx (Rofecoxib) Historical PRR Backtest",
     description=(
-        "Returns the reconstructed PRR signal trajectory for Rofecoxib (Vioxx) myocardial "
-        "infarction, demonstrating how early pharmacovigilance monitoring would have detected "
-        "the cardiovascular safety signal 4 years before market withdrawal."
+        "Returns the real openFDA PRR signal trajectory for Vioxx myocardial "
+        "infarction, demonstrating how early pharmacovigilance monitoring detected "
+        "the cardiovascular safety signal 242 days before market withdrawal."
     ),
 )
 async def get_vioxx_backtest() -> Dict[str, Any]:
     """Returns the historical Vioxx signal backtest analysis."""
     try:
         return run_vioxx_backtest()
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get(
+    "/backtest/{drug_name}",
+    summary="Drug Safety Signal Historical Backtest",
+    description="Returns walk-forward digital-twin backtest analysis for any supported drug (VIOXX, BAYCOL, AVANDIA).",
+)
+async def get_drug_backtest(drug_name: str) -> Dict[str, Any]:
+    """Returns historical backtest analysis for the requested drug."""
+    try:
+        return run_drug_backtest(drug_name)
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except FileNotFoundError as e:
+        raise HTTPException(status_code=404, detail=str(e))
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

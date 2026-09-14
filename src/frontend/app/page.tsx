@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import React, { useState, useEffect, useCallback } from "react";
 import {
@@ -50,7 +50,9 @@ interface VioxxBacktest {
   }>;
   first_signal_quarter: string;
   market_withdrawal_quarter: string;
-  detection_lead_time_quarters: number;
+  detection_lead_time_quarters: number | string;
+  lead_time_days?: number | string;
+  verdict?: string;
   clinical_summary: string;
 }
 
@@ -366,7 +368,7 @@ function SignalDetectionTab({ backendOnline }: { backendOnline: boolean }) {
           <div>
             <h2 className="text-sm font-semibold text-white">🕰 Vioxx (Rofecoxib) Historical Backtest</h2>
             <p className="text-xs text-white/50 mt-0.5">
-              PRR signal would have been detected 4 years before market withdrawal
+              {vioxx ? `Early signal detected ${vioxx.detection_lead_time_quarters} days (~8 months) before market withdrawal` : "Real openFDA PRR signal detected before market withdrawal"}
             </p>
           </div>
           <span className="text-white/40">{showVioxx ? "▲" : "▼"}</span>
@@ -384,7 +386,11 @@ function SignalDetectionTab({ backendOnline }: { backendOnline: boolean }) {
                 <div className="text-xs text-white/50">Market Withdrawal</div>
               </div>
               <div className="rounded-lg p-3 bg-blue-500/10 border border-blue-500/20">
-                <div className="text-lg font-bold text-blue-400">{vioxx.detection_lead_time_quarters}Q</div>
+                <div className="text-lg font-bold text-blue-400">
+                  {typeof vioxx.detection_lead_time_quarters === "number" || !isNaN(Number(vioxx.detection_lead_time_quarters))
+                    ? `${vioxx.detection_lead_time_quarters} days`
+                    : vioxx.detection_lead_time_quarters}
+                </div>
                 <div className="text-xs text-white/50">Early Detection Lead</div>
               </div>
             </div>

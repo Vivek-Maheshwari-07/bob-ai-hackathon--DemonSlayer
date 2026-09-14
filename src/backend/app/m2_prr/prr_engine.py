@@ -1,4 +1,4 @@
-﻿"""Module M2: PRR Signal Engine.
+"""Module M2: PRR Signal Engine.
 
 Calculates Proportional Reporting Ratio (PRR), chi-square statistics,
 and applies configurable signal detection thresholds to rank drug safety signals.
@@ -63,7 +63,7 @@ def calculate_prr(
     d = max(d, 0)
 
     p_drug_event = a / n_drug_total
-    p_ref_event = n_event_total / n_total
+    p_ref_event = (c / (c + d)) if (c + d) > 0 else (n_event_total / n_total)
 
     if p_ref_event <= 0:
         return {

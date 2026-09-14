@@ -1,16 +1,18 @@
 # Submission Details
 
 team:
-  name: "Demon Slayer"
+  name: "team-name"
   track: "AI"
   lead:
-    name: "TODO: Team Lead Name"
-    email: "TODO: teamlead@example.com"
+    name: "Vivek Maheshwari"
+    email: "24cs050@charusat.edu.in"
   members:
-    - name: "TODO: Member Name 1"
-      email: "TODO: member1@example.com"
-    - name: "TODO: Member Name 2"
-      email: "TODO: member2@example.com"
+    - name: "Aayush Malhotra"
+      email: "24cs051@charusat.edu.in"
+    - name: "Jugal Kshatriya"
+      email: "24cs042@charusat.edu.in"
+    - name: "Manav Lathiya"
+      email: "24cs048@charusat.edu.in"
 
 submission:
   title: "Drug Safety Signal Detector & Regulatory Submission Readiness Checker"
@@ -22,16 +24,16 @@ submission:
     workflows lead to delayed safety investigations and submission bottlenecks.
   solution_summary: >-
     A dual-capability intelligence platform combining pharmacovigilance adverse-event signal
-    detection (clustering, emerging trend identification, and Proportional Reporting Ratio [PRR]
-    representation) with an automated ICH M4 CTD dossier readiness checker (readiness percentage,
-    module-wise scoring, critical gap reporting), augmented by an interactive IBM Bob AI Copilot
-    for explainable natural-language inquiries.
+    detection (real openFDA FAERS data ingestion, disproportionality scoring via Evans Proportional
+    Reporting Ratio [PRR] and chi-square, and digital-twin walk-forward backtesting) with an automated
+    ICH M4 CTD dossier readiness checker (readiness percentage, module-wise scoring, critical gap reporting),
+    augmented by an interactive IBM Bob AI Copilot for explainable natural-language inquiries.
   key_features:
-    - "Adverse event data ingestion, clustering, and emerging pattern analysis"
-    - "PRR (Proportional Reporting Ratio) signal calculation and statistical representation"
-    - "Explainable safety-signal alerts and safety team investigation support"
+    - "Real openFDA FAERS adverse event data ingestion, cleaning, and normalization across benchmark drugs (VIOXX, BAYCOL, AVANDIA)"
+    - "PRR (Proportional Reporting Ratio) and Pearson chi-square disproportionality signal detection with standard regulatory thresholds"
+    - "Digital-twin time-series PRR trajectory projection and historical regulatory action walk-forward backtesting"
     - "ICH M4-aligned CTD dossier structural inspection and section completeness verification"
     - "Overall submission-readiness percentage and module-wise readiness scoring (Modules 1-5)"
     - "Critical missing document/section identification and gap report generation"
     - "IBM Bob AI Copilot for natural-language safety signal and regulatory readiness investigation"
-  status: "Initial setup & MVP architecture phase"
+  status: "Implemented core analytical pipeline with real openFDA FAERS data & working ICH M4 regulatory readiness checker"

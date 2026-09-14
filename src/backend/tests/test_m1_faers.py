@@ -1,39 +1,45 @@
-﻿"""Tests for M1 FAERS Ingest Module."""
+"""Tests for M1 FAERS Ingest Module (Real OpenFDA Data)."""
 
 import pytest
 import pandas as pd
 from app.m1_faers.faers_ingest import (
     normalize_drug_name,
     normalize_event_name,
-    load_demo_faers_data,
+    load_real_faers_data,
     validate_faers_records,
     build_contingency_table,
+    build_contingency_table_from_real_signals,
     run_m1_pipeline,
 )
 
 
 def test_normalize_drug_name():
-    assert normalize_drug_name("  rofecoxib  ") == "ROFECOXIB"
-    assert normalize_drug_name("METFORMIN") == "METFORMIN"
+    assert normalize_drug_name("  vioxx  ") == "VIOXX"
+    assert normalize_drug_name("BAYCOL") == "BAYCOL"
+    assert normalize_drug_name("AVANDIA") == "AVANDIA"
     assert normalize_drug_name("") == ""
     assert normalize_drug_name(None) == ""
 
 
 def test_normalize_event_name():
     assert normalize_event_name("myocardial infarction") == "MYOCARDIAL INFARCTION"
-    assert normalize_event_name("  NAUSEA  ") == "NAUSEA"
+    assert normalize_event_name("  RHABDOMYOLYSIS  ") == "RHABDOMYOLYSIS"
     assert normalize_event_name("") == ""
+    assert normalize_event_name(None) == ""
 
 
-def test_load_demo_data():
-    df = load_demo_faers_data()
-    assert len(df) > 10
+def test_load_real_faers_data():
+    df = load_real_faers_data()
+    assert len(df) > 1000
+    assert "drug" in df.columns
+    assert "reaction_term" in df.columns
     assert "drug_name" in df.columns
     assert "event_term" in df.columns
-    assert "report_count" in df.columns
-    # All drug names normalized to uppercase
+    # Drug names normalized to uppercase
     assert all(df["drug_name"] == df["drug_name"].str.upper())
-    assert all(df["report_count"] >= 0)
+    # Drugs present should match the real openFDA dataset
+    drugs = set(df["drug_name"].unique())
+    assert {"VIOXX", "BAYCOL", "AVANDIA"}.issubset(drugs)
 
 
 def test_validate_records_empty():
@@ -44,8 +50,8 @@ def test_validate_records_empty():
 
 def test_validate_records_removes_empty():
     df = pd.DataFrame({
-        "drug_name": ["ASPIRIN", ""],
-        "event_term": ["NAUSEA", "RASH"],
+        "drug_name": ["VIOXX", ""],
+        "event_term": ["MYOCARDIAL INFARCTION", "NAUSEA"],
         "report_count": [10, 5],
     })
     cleaned, issues = validate_faers_records(df)
@@ -55,8 +61,8 @@ def test_validate_records_removes_empty():
 
 def test_build_contingency_table():
     df = pd.DataFrame({
-        "drug_name": ["ASPIRIN", "ASPIRIN", "WARFARIN"],
-        "event_term": ["NAUSEA", "RASH", "NAUSEA"],
+        "drug_name": ["VIOXX", "VIOXX", "BAYCOL"],
+        "event_term": ["MYOCARDIAL INFARCTION", "RASH", "MYOCARDIAL INFARCTION"],
         "report_count": [100, 50, 200],
     })
     ct = build_contingency_table(df)
@@ -81,7 +87,20 @@ def test_run_m1_pipeline():
     assert "events" in result
     assert "issues" in result
     assert result["total_records"] > 0
-    assert len(result["drugs"]) > 0
-    assert len(result["events"]) > 0
-    # Rofecoxib should be in dataset
-    assert "ROFECOXIB" in result["drugs"]
+    # Real drug names from openFDA dataset
+    assert sorted(result["drugs"]) == ["AVANDIA", "BAYCOL", "VIOXX"]
+    assert "VIOXX" in result["drugs"]
+    assert "BAYCOL" in result["drugs"]
+    assert "AVANDIA" in result["drugs"]
+    assert any("openFDA" in issue for issue in result["issues"])
+
+
+def test_real_contingency_table_values():
+    result = run_m1_pipeline()
+    ct = result["contingency_table"]
+    row = ct[(ct["drug_name"] == "VIOXX") & (ct["event_term"] == "MYOCARDIAL INFARCTION")]
+    assert not row.empty
+    rec = row.iloc[0]
+    assert int(rec["n_drug_event"]) == 17938
+    assert int(rec["n_drug_total"]) == 44279
+    assert int(rec["n_total"]) == 20692690

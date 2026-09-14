@@ -1,164 +1,199 @@
-﻿"""Module M3: Digital Twin + PRR Trajectory & Vioxx Backtest.
+"""Module M3: Digital Twin + Real PRR Trajectory & Historical Backtest.
 
-Generates time-series PRR trajectory data and historical backtesting analysis.
-Includes the landmark Vioxx (Rofecoxib) safety signal reconstruction.
-
-Historical basis:
-    Rofecoxib was approved in 1999. The VIGOR trial (2000) showed excess MI risk.
-    FDA withdrawal November 2004. Post-hoc FAERS analysis confirmed escalating PRR
-    from 1999-2004 which would have triggered signal detection 2+ years earlier.
+Loads time-series PRR trajectory data and historical backtesting analysis
+derived from actual openFDA FAERS monthly time-slices for VIOXX, BAYCOL, and AVANDIA.
 """
 
+import os
 from typing import Any, Dict, List, Optional
-import numpy as np
+import pandas as pd
 
 
-# ─── Reconstructed Vioxx PRR Trajectory (based on published literature) ─────
-# Source: Graham et al. (2005) Lancet; FDA re-analysis of FAERS 1999-2004
-# Note: These are illustrative values reconstructed for educational demonstration.
-VIOXX_MI_TRAJECTORY = [
-    {"quarter": "1999-Q3", "prr": 1.2, "chi_square": 0.8, "n_cases": 12, "signal_status": "NOISE"},
-    {"quarter": "1999-Q4", "prr": 1.5, "chi_square": 1.2, "n_cases": 28, "signal_status": "NOISE"},
-    {"quarter": "2000-Q1", "prr": 1.8, "chi_square": 2.1, "n_cases": 67, "signal_status": "NOISE"},
-    {"quarter": "2000-Q2", "prr": 2.1, "chi_square": 3.8, "n_cases": 112, "signal_status": "WEAK_SIGNAL"},
-    {"quarter": "2000-Q3", "prr": 2.4, "chi_square": 5.2, "n_cases": 178, "signal_status": "SIGNAL"},
-    {"quarter": "2000-Q4", "prr": 2.8, "chi_square": 7.1, "n_cases": 234, "signal_status": "SIGNAL"},
-    {"quarter": "2001-Q1", "prr": 3.1, "chi_square": 9.4, "n_cases": 312, "signal_status": "SIGNAL"},
-    {"quarter": "2001-Q2", "prr": 3.3, "chi_square": 11.2, "n_cases": 378, "signal_status": "SIGNAL"},
-    {"quarter": "2001-Q3", "prr": 3.6, "chi_square": 13.8, "n_cases": 445, "signal_status": "SIGNAL"},
-    {"quarter": "2001-Q4", "prr": 3.8, "chi_square": 15.4, "n_cases": 512, "signal_status": "SIGNAL"},
-    {"quarter": "2002-Q1", "prr": 4.1, "chi_square": 18.2, "n_cases": 578, "signal_status": "SIGNAL"},
-    {"quarter": "2002-Q2", "prr": 4.4, "chi_square": 21.3, "n_cases": 634, "signal_status": "SIGNAL"},
-    {"quarter": "2002-Q3", "prr": 4.7, "chi_square": 24.1, "n_cases": 712, "signal_status": "SIGNAL"},
-    {"quarter": "2002-Q4", "prr": 5.0, "chi_square": 27.8, "n_cases": 789, "signal_status": "SIGNAL"},
-    {"quarter": "2003-Q1", "prr": 5.2, "chi_square": 29.4, "n_cases": 823, "signal_status": "SIGNAL"},
-    {"quarter": "2003-Q2", "prr": 5.5, "chi_square": 32.1, "n_cases": 847, "signal_status": "SIGNAL"},
-    {"quarter": "2003-Q3", "prr": 5.8, "chi_square": 35.6, "n_cases": 898, "signal_status": "SIGNAL"},
-    {"quarter": "2003-Q4", "prr": 6.1, "chi_square": 38.9, "n_cases": 934, "signal_status": "SIGNAL"},
-    {"quarter": "2004-Q1", "prr": 6.4, "chi_square": 42.3, "n_cases": 978, "signal_status": "SIGNAL"},
-    {"quarter": "2004-Q2", "prr": 6.7, "chi_square": 45.8, "n_cases": 1012, "signal_status": "SIGNAL"},
-    {"quarter": "2004-Q3", "prr": 7.1, "chi_square": 49.2, "n_cases": 1067, "signal_status": "SIGNAL"},
-    {"quarter": "2004-Q4", "prr": 7.4, "chi_square": 52.1, "n_cases": 1089, "signal_status": "SIGNAL"},
-]
+DATA_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "data"))
+
+DRUG_ALIASES = {
+    "ROFECOXIB": "VIOXX",
+    "CERIVASTATIN": "BAYCOL",
+    "ROSIGLITAZONE": "AVANDIA",
+}
+
+
+def _normalize_drug_name(drug_name: str) -> str:
+    cleaned = drug_name.strip().upper()
+    return DRUG_ALIASES.get(cleaned, cleaned)
 
 
 def generate_prr_trajectory(
     drug_name: str,
-    event_term: str,
-    quarters: Optional[List[str]] = None,
-    seed: int = 42,
+    event_term: Optional[str] = None,
+    data_dir: Optional[str] = None,
 ) -> List[Dict[str, Any]]:
-    """Generates a synthetic PRR trajectory for a drug-event pair.
+    """Loads real monthly PRR trajectory for a drug from openFDA backtest data.
 
-    For known historical signals (Rofecoxib/MI), returns the reconstructed trajectory.
-    For other drug-event pairs, generates a plausible synthetic trajectory.
+    Maps:
+      - year_month -> 'quarter' (JSON key kept as 'quarter' for frontend compatibility;
+        actual time series granularity is monthly YYYY-MM)
+      - a_cumulative -> 'n_cases'
+      - signal_met (bool) -> 'signal_status' ('SIGNAL' or 'NOISE')
+      - is_projected -> passed through directly
 
     Args:
-        drug_name: Drug name (normalized uppercase).
-        event_term: Adverse event term.
-        quarters: Optional list of quarter labels. Uses 2019-2024 if None.
-        seed: Random seed for reproducibility.
+        drug_name: Name of drug (e.g. 'VIOXX', 'BAYCOL', 'AVANDIA', or alias 'ROFECOXIB').
+        event_term: Optional adverse event term filter (for backward compatibility).
+        data_dir: Optional path to directory containing m3_digital_twin/.
 
     Returns:
-        List of quarterly trajectory dicts.
+        List of monthly trajectory dicts.
     """
-    drug_upper = drug_name.upper().strip()
-    event_upper = event_term.upper().strip()
+    if data_dir is None:
+        data_dir = DATA_DIR
 
-    # Return historical Vioxx reconstruction for the landmark signal
-    if drug_upper in ("ROFECOXIB", "VIOXX") and "MYOCARDIAL" in event_upper:
-        return VIOXX_MI_TRAJECTORY
+    norm_drug = _normalize_drug_name(drug_name)
+    traj_file = os.path.join(data_dir, "m3_digital_twin", f"{norm_drug}_trajectory.csv")
 
-    # Generate synthetic trajectory
-    rng = np.random.default_rng(seed + hash(drug_upper + event_upper) % (2**32))
-    if quarters is None:
-        quarters = [
-            f"{y}-Q{q}" for y in range(2019, 2025) for q in range(1, 5)
-        ][:20]
+    if not os.path.exists(traj_file):
+        raise FileNotFoundError(f"Trajectory file not found for drug '{norm_drug}': {traj_file}")
 
-    trajectory = []
-    prr = rng.uniform(0.8, 1.5)
-    n_cases = int(rng.integers(5, 50))
+    df = pd.read_csv(traj_file)
+    trajectory: List[Dict[str, Any]] = []
 
-    for i, q in enumerate(quarters):
-        # Drift PRR over time with some noise
-        drift = rng.normal(0.05, 0.15)
-        prr = max(0.1, prr + drift)
-        n_cases = max(1, n_cases + int(rng.integers(-5, 30)))
-        chi_sq = max(0.0, prr * n_cases * 0.08 + rng.normal(0, 0.5))
-
-        if prr >= 2.0 and chi_sq >= 4.0 and n_cases >= 3:
-            status = "SIGNAL"
-        elif prr >= 1.5:
-            status = "WEAK_SIGNAL"
-        else:
-            status = "NOISE"
-
+    for _, row in df.iterrows():
+        is_signal = bool(row.get("signal_met", False))
+        is_proj = bool(row.get("is_projected", False))
         trajectory.append({
-            "quarter": q,
-            "prr": round(float(prr), 3),
-            "chi_square": round(float(chi_sq), 3),
-            "n_cases": n_cases,
-            "signal_status": status,
+            # Key kept as 'quarter' for frontend compatibility; true granularity is monthly (YYYY-MM)
+            "quarter": str(row["year_month"]),
+            "prr": round(float(row["prr"]), 4),
+            "chi_square": round(float(row["chi_square"]), 4),
+            "n_cases": int(row["a_cumulative"]),
+            "signal_status": "SIGNAL" if is_signal else "NOISE",
+            "is_projected": is_proj,
+            "drug_total_cumulative": int(row.get("drug_total_cumulative", 0)),
         })
 
     return trajectory
 
 
-def run_vioxx_backtest() -> Dict[str, Any]:
-    """Returns the Vioxx (Rofecoxib) MI signal backtest reconstruction.
+def run_drug_backtest(drug_name: str, data_dir: Optional[str] = None) -> Dict[str, Any]:
+    """Reads backtest_summary.csv and returns standardized backtest report for the drug.
 
-    Demonstrates how early pharmacovigilance signal detection using PRR
-    would have identified the cardiovascular safety signal in 2000-Q3,
-    approximately 4 years before the market withdrawal in September 2004.
+    Handles real outcomes:
+      - VIOXX: early detection (+242 days before 2004-09-30 withdrawal)
+      - BAYCOL: DATA_UNAVAILABLE_PRE_WITHDRAWAL (openFDA data starts post-withdrawal ~2004; detection_date is 'N/A')
+      - AVANDIA: dynamic values read directly from backtest_summary.csv (+1205 days before 2007-05-21 boxed warning)
+
+    Args:
+        drug_name: Name of drug ('VIOXX', 'BAYCOL', 'AVANDIA', or alias).
+        data_dir: Optional path to directory containing m3_digital_twin/.
 
     Returns:
-        Dict with trajectory, detection metadata, and clinical summary.
+        Dict with detection metadata, trajectory, and clinical summary.
     """
-    trajectory = VIOXX_MI_TRAJECTORY
+    if data_dir is None:
+        data_dir = DATA_DIR
 
-    # Find first SIGNAL quarter
-    first_signal = next(
-        (t for t in trajectory if t["signal_status"] == "SIGNAL"), None
-    )
+    norm_drug = _normalize_drug_name(drug_name)
+    summary_file = os.path.join(data_dir, "m3_digital_twin", "backtest_summary.csv")
+
+    if not os.path.exists(summary_file):
+        raise FileNotFoundError(f"Backtest summary file not found: {summary_file}")
+
+    df = pd.read_csv(summary_file, keep_default_na=False)
+    df["drug_upper"] = df["drug"].astype(str).str.strip().str.upper()
+    matches = df[df["drug_upper"] == norm_drug]
+
+    if matches.empty:
+        raise ValueError(f"No backtest summary available for drug '{norm_drug}' in {summary_file}")
+
+    row = matches.iloc[0]
+    target_term = str(row["target_term"])
+    raw_detection = str(row["detection_date"]).strip()
+    detection_date = "N/A" if raw_detection in ("", "nan", "NaN", "None", "N/A") else raw_detection
+    real_world_action_date = str(row["real_world_action_date"]).strip()
+    lead_time_raw = str(row["lead_time_days"]).strip()
+    verdict = str(row["verdict"]).strip()
+
+    # Parse numeric lead time if available, otherwise preserve 'N/A'
+    if lead_time_raw in ("", "nan", "NaN", "None", "N/A"):
+        lead_time_val: Any = "N/A"
+    elif lead_time_raw.isdigit() or (lead_time_raw.startswith("-") and lead_time_raw[1:].isdigit()):
+        lead_time_val = int(lead_time_raw)
+    else:
+        try:
+            lead_time_val = int(float(lead_time_raw))
+        except (ValueError, TypeError):
+            lead_time_val = lead_time_raw
+
+    # Load real trajectory
+    traj = generate_prr_trajectory(norm_drug, data_dir=data_dir)
+
+    # First signal PRR
+    first_signal = next((t for t in traj if t["signal_status"] == "SIGNAL"), None)
+    first_signal_prr = first_signal["prr"] if first_signal else 0.0
+
+    # Clinical summaries reflecting verified openFDA reality
+    if norm_drug == "VIOXX":
+        clinical_summary = (
+            "Vioxx (Rofecoxib) was withdrawn from the market on September 30, 2004 due to excess "
+            "cardiovascular risk. Monthly walk-forward digital-twin backtesting on real openFDA FAERS data "
+            "detected a sustained myocardial infarction signal (PRR ≥ 2.0, χ² ≥ 4.0, a ≥ 3) on January 31, 2004, "
+            "providing 242 days (~8 months) of early detection lead time prior to the manufacturer's voluntary withdrawal."
+        )
+    elif norm_drug == "BAYCOL":
+        clinical_summary = (
+            "Baycol (Cerivastatin) was withdrawn from the market on August 8, 2001 due to fatal rhabdomyolysis. "
+            "Public openFDA FAERS API records begin in 2004, after the withdrawal occurred. "
+            "This is a genuine historical data-availability limitation (DATA_UNAVAILABLE_PRE_WITHDRAWAL) of openFDA, "
+            "not an analytical or detection failure."
+        )
+    elif norm_drug == "AVANDIA":
+        clinical_summary = (
+            f"Avandia (Rosiglitazone) received an FDA Boxed Warning on {real_world_action_date} for congestive heart failure. "
+            f"Monthly walk-forward digital-twin backtesting detected a sustained cardiac failure signal on {detection_date}, "
+            f"providing {lead_time_raw} days of early detection lead time before the regulatory boxed warning."
+        )
+    else:
+        clinical_summary = (
+            f"Digital twin backtest evaluation for {norm_drug} on {target_term}: "
+            f"verdict {verdict}, detection date {detection_date}, lead time {lead_time_raw} days."
+        )
 
     return {
-        "drug_name": "ROFECOXIB (Vioxx)",
-        "event_term": "MYOCARDIAL INFARCTION",
-        "trajectory": trajectory,
-        "first_signal_quarter": first_signal["quarter"] if first_signal else "N/A",
-        "first_signal_prr": first_signal["prr"] if first_signal else 0.0,
-        "market_withdrawal_quarter": "2004-Q3",
-        "detection_lead_time_quarters": 16,
-        "clinical_summary": (
-            "Rofecoxib (Vioxx) was approved by the FDA in May 1999 as a COX-2 selective "
-            "NSAID. Post-market FAERS data shows that PRR for myocardial infarction crossed "
-            "the signal threshold (PRR ≥ 2.0, chi-sq ≥ 4.0) as early as Q3 2000, "
-            "approximately 4 years before market withdrawal in September 2004. "
-            "The VIGOR trial (November 2000) corroborated the cardiovascular signal. "
-            "An automated PRR monitoring system would have triggered investigation "
-            "approximately 16 quarters (~4 years) ahead of withdrawal."
-        ),
+        "drug_name": norm_drug,
+        "event_term": target_term,
+        "trajectory": traj,
+        "first_signal_quarter": detection_date,
+        "first_signal_prr": first_signal_prr,
+        "market_withdrawal_quarter": real_world_action_date,
+        # NOTE: Unit mismatch flag - this field holds DAYS (not quarters) from real backtest computation
+        "detection_lead_time_quarters": lead_time_val,
+        "lead_time_days": lead_time_val,
+        "verdict": verdict,
+        "clinical_summary": clinical_summary,
         "source_note": (
-            "Trajectory values are reconstructed from published pharmacoepidemiology "
-            "literature (Graham et al. 2005, Lancet; FDA post-withdrawal analysis). "
-            "For educational/demonstration purposes only."
+            "Computed from actual openFDA FAERS monthly time-series and verified regulatory action dates. "
+            "Real pipeline backtest output."
         ),
     }
+
+
+def run_vioxx_backtest(data_dir: Optional[str] = None) -> Dict[str, Any]:
+    """Returns the Vioxx (Rofecoxib) MI signal backtest reconstruction.
+
+    Thin backward-compatibility wrapper around run_drug_backtest('VIOXX').
+    """
+    return run_drug_backtest("VIOXX", data_dir=data_dir)
 
 
 def get_emerging_signals(
     drug_results: List[Dict[str, Any]],
     quarters_window: int = 4,
 ) -> List[Dict[str, Any]]:
-    """Identifies emerging signals with increasing PRR trend over recent quarters.
-
-    An 'emerging signal' is one where PRR has increased consistently over
-    the last N quarters and recently crossed the signal threshold.
+    """Identifies emerging signals with increasing PRR trend over recent time slices.
 
     Args:
         drug_results: List of trajectory dicts from generate_prr_trajectory().
-        quarters_window: Number of recent quarters to evaluate for trend.
+        quarters_window: Number of recent periods to evaluate for trend.
 
     Returns:
         List of emerging signal assessments.
@@ -169,8 +204,7 @@ def get_emerging_signals(
     recent = drug_results[-quarters_window:]
     prr_values = [r["prr"] for r in recent]
 
-    # Check for monotonically increasing trend
-    is_increasing = all(prr_values[i] <= prr_values[i+1] for i in range(len(prr_values)-1))
+    is_increasing = all(prr_values[i] <= prr_values[i + 1] for i in range(len(prr_values) - 1))
     latest = recent[-1]
     previous_statuses = [r["signal_status"] for r in recent[:-1]]
     was_below_threshold = any(s != "SIGNAL" for s in previous_statuses)

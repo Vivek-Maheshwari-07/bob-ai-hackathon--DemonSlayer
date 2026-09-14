@@ -117,6 +117,7 @@ flowchart TD
 |---|---|---|
 | Repository & Documentation Skeleton | Complete | Ready for hackathon submission verification |
 | Source Folder Hierarchy (`src/frontend`, `src/backend`) | Scaffolded | Directory layout and dependency manifests prepared |
-| Analytical Engines (PRR & CTD Checker) | In Planning / MVP Phase | Algorithms and schemas designed; core implementation upcoming |
+| Analytical Engines (M1-M3 FAERS PRR & Digital Twin) | Implemented — real openFDA data | Verified openFDA data artifacts, Evans PRR, Chi², and walk-forward backtesting |
+| CTD Regulatory Readiness Checker (M4) | Implemented | ICH M4 completeness validation, gap detection, and deterministic fallback |
 | IBM Bob & watsonx.ai Integration | In Planning / MVP Phase | Prompts, context schemas, and copilot endpoints designed |
-| User Interface Components | In Planning / MVP Phase | Component hierarchy designed for React / Next.js |
+| User Interface Components | Scaffolded / Interactive | Next.js dashboard with live signal detection and CTD readiness views |

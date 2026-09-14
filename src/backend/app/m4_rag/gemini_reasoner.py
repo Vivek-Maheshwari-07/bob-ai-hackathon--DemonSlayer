@@ -7,7 +7,11 @@ rate-limit safeguards, and deterministic offline fallback.
 
 import os
 from typing import Any, Dict, List, Optional
-import httpx
+
+try:
+    import httpx
+except ImportError:
+    httpx = None
 
 from app.m4_rag.schema import (
     CriticalityLevel,
@@ -33,8 +37,8 @@ class GeminiGroundedReasoner:
 
     @property
     def is_available(self) -> bool:
-        """Checks if Google Gemini API key is configured."""
-        return bool(self.api_key and self.api_key.strip())
+        """Checks if Google Gemini API key is configured and httpx is available."""
+        return bool(self.api_key and self.api_key.strip() and httpx is not None)
 
     def generate_reasoning_insights(
         self,

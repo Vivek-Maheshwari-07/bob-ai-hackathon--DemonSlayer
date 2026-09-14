@@ -4,20 +4,41 @@ Orchestrates PDF extraction, parsing, hybrid retrieval, completeness scoring,
 Gemini 2.5 Flash grounded regulatory reasoning, and actionable gap report generation.
 """
 
+import sys
+from pathlib import Path
 from typing import Any, BinaryIO, Dict, List, Optional, Union
 
-from app.m4_rag.completeness import CompletenessScorer
-from app.m4_rag.dossier_parser import DossierParser
-from app.m4_rag.gap_checker import GapChecker
-from app.m4_rag.gemini_reasoner import GeminiGroundedReasoner
-from app.m4_rag.knowledge.loader import get_knowledge_base, KnowledgeBaseLoader
-from app.m4_rag.pdf_extractor import CTDPDFExtractor
-from app.m4_rag.report_generator import ReportGenerator
-from app.m4_rag.retriever import ICHRetriever
-from app.m4_rag.schema import (
-    DossierOutlineInput,
-    GapReportOutput,
-)
+# Ensure backend directory is in sys.path when executed directly
+_backend_dir = str(Path(__file__).resolve().parent.parent.parent)
+if _backend_dir not in sys.path:
+    sys.path.insert(0, _backend_dir)
+
+try:
+    from app.m4_rag.completeness import CompletenessScorer
+    from app.m4_rag.dossier_parser import DossierParser
+    from app.m4_rag.gap_checker import GapChecker
+    from app.m4_rag.gemini_reasoner import GeminiGroundedReasoner
+    from app.m4_rag.knowledge.loader import get_knowledge_base, KnowledgeBaseLoader
+    from app.m4_rag.pdf_extractor import CTDPDFExtractor
+    from app.m4_rag.report_generator import ReportGenerator
+    from app.m4_rag.retriever import ICHRetriever
+    from app.m4_rag.schema import (
+        DossierOutlineInput,
+        GapReportOutput,
+    )
+except ImportError:
+    from .completeness import CompletenessScorer
+    from .dossier_parser import DossierParser
+    from .gap_checker import GapChecker
+    from .gemini_reasoner import GeminiGroundedReasoner
+    from .knowledge.loader import get_knowledge_base, KnowledgeBaseLoader
+    from .pdf_extractor import CTDPDFExtractor
+    from .report_generator import ReportGenerator
+    from .retriever import ICHRetriever
+    from .schema import (
+        DossierOutlineInput,
+        GapReportOutput,
+    )
 
 
 class CTDRagCheckerPipeline:
@@ -123,3 +144,25 @@ def check_ctd_pdf(
         enable_reasoner=enable_reasoner,
         max_pages=max_pages,
     )
+
+
+if __name__ == "__main__":
+    try:
+        from app.m4_rag.presets import PRESET_DOSSIERS
+    except ImportError:
+        from presets import PRESET_DOSSIERS
+
+    print("=" * 60)
+    print("ICH M4 CTD DOSSIER READINESS CHECKER (STANDALONE RUN)")
+    print("=" * 60)
+    pipe = CTDRagCheckerPipeline()
+    sample = PRESET_DOSSIERS["VIOXX_NDA_21042"]
+    print(f"Auditing dossier: {sample['submission_title']}")
+    rep = pipe.run(sample, enable_reasoner=False)
+    print("Audit completed successfully!")
+    print(f"  Overall Completeness Score : {rep.overall_completeness}%")
+    print(f"  Total Sections Evaluated   : {rep.total_sections_evaluated}")
+    print(f"  Sections Present           : {rep.present_total}")
+    print(f"  Sections Missing           : {rep.missing_total}")
+    print(f"  Critical / Major Gaps      : {len(rep.priority_gaps)}")
+    print("=" * 60)

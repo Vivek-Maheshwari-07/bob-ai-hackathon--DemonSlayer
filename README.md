@@ -8,8 +8,8 @@ An intelligent dual-capability platform for pharmacovigilance and regulatory aff
 
 - **Team Name**: Demon Slayer
 - **Track**: AI
-- **Team Lead**: TODO (To be updated with official hackathon registration details)
-- **Team Members**: TODO (To be updated with official hackathon registration details)
+- **Team Lead**: Vivek Maheshwari
+- **Team Members**: Aayush Malhotra, Jugal Kshatriya, Manav Lathiya
 
 ---
 
@@ -159,7 +159,7 @@ IBM Bob Copilot Interaction
 
 ## How to Run
 
-Please refer to the detailed [Setup Guide](file:///d:/bob-ai-hackathon--your-team-name-/docs/setup-guide.md) for prerequisite requirements, environment configuration, and local setup steps.
+Please refer to the detailed [Setup Guide](./docs/setup-guide.md) for prerequisite requirements, environment configuration, and local setup steps.
 
 *(Note: Detailed runtime execution instructions will be updated as the frontend and backend core services complete MVP implementation.)*
 
@@ -167,9 +167,9 @@ Please refer to the detailed [Setup Guide](file:///d:/bob-ai-hackathon--your-tea
 
 ## Demo
 
-- **Demo Video**: See [demo/demo-video-link.txt](file:///d:/bob-ai-hackathon--your-team-name-/demo/demo-video-link.txt)
-- **Live Demo**: See [demo/live-demo-url.txt](file:///d:/bob-ai-hackathon--your-team-name-/demo/live-demo-url.txt)
-- **Screenshots**: Visual walk-throughs will be placed in [demo/screenshots/](file:///d:/bob-ai-hackathon--your-team-name-/demo/screenshots/README.md) once core UI modules are rendered.
+- **Demo Video**: See [demo/demo-video-link.txt](./demo/demo-video-link.txt)
+- **Live Demo**: See [demo/live-demo-url.txt](./demo/live-demo-url.txt)
+- **Screenshots**: Visual walk-throughs will be placed in [demo/screenshots/](./demo/screenshots/README.md) once core UI modules are rendered.
 
 ---
 
