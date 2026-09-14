@@ -17,6 +17,7 @@ class Settings(BaseSettings):
         "https://us-south.ml.cloud.ibm.com"
     )
     IBM_BOB_CONFIG: str = os.getenv("IBM_BOB_CONFIG", "{}")
+    GEMINI_API_KEY: str = os.getenv("GEMINI_API_KEY", "")
 
     class Config:
         env_file = ".env"

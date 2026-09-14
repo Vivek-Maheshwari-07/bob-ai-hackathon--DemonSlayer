@@ -44,3 +44,9 @@ async def health_check():
             "bob_copilot": "ready",
         },
     }
+
+
+from app.api.v1.endpoints.m4_checker import router as m4_router
+
+# Include API Routers
+app.include_router(m4_router, prefix="/api/v1")
