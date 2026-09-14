@@ -1,10 +1,13 @@
-"""FastAPI Application Entry Point.
+﻿"""FastAPI Application Entry Point.
 
 Drug Safety Signal Detector & Regulatory Submission Readiness Checker
 """
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+
+from app.api.v1.endpoints.m4_checker import router as m4_router
+from app.api.v1.endpoints.signal_detection import router as signals_router
 
 app = FastAPI(
     title="Drug Safety Signal Detector & Regulatory Submission Readiness Checker API",
@@ -29,7 +32,10 @@ async def root():
         "status": "online",
         "message": "Drug Safety Signal Detector & Regulatory Submission Readiness Checker API",
         "version": "0.1.0",
-        "mode": "initial_setup",
+        "modules": {
+            "m1_m2_m3": "/api/v1/signals - Signal Detection",
+            "m4": "/api/v1/m4 - CTD Readiness Checker",
+        },
     }
 
 
@@ -46,7 +52,6 @@ async def health_check():
     }
 
 
-from app.api.v1.endpoints.m4_checker import router as m4_router
-
 # Include API Routers
 app.include_router(m4_router, prefix="/api/v1")
+app.include_router(signals_router, prefix="/api/v1")

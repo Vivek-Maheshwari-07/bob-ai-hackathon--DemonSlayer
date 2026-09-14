@@ -207,11 +207,11 @@ class DossierParser:
             "5.3.5 Reports of Efficacy and Safety Studies"
             "- 4.2.3 Toxicology Studies (Single and repeat dose)"
         """
-        cleaned = re.sub(r"^[\s*\-#>\d+\.]+", "", line).strip()
-        # Look for section ID at start of original line
+        clean_line = re.sub(r"^[\s*\-#>]+", "", line).strip()
+        # Look for section ID at start of cleaned line
         match = re.search(
             r"^(?:(?:Module|Mod|Sec|Section|M)\s*)?([1-5](?:\.[0-9A-Za-z]+)+|\b[1-5]\b)(?:[:\-\s\t]+)(.*)$",
-            line.strip(),
+            clean_line,
             re.IGNORECASE,
         )
         if match:
@@ -227,11 +227,17 @@ class DossierParser:
                 description=desc,
             )
 
-        # If no explicit section ID was found at line start, check if line has non-empty text
-        if len(line.strip()) > 3:
+        # If no explicit section ID was found at line start, ignore decorative banner lines
+        stripped = line.strip()
+        if re.match(r"^[=\-_#*]+\s*.*[=\-_#*]+$", stripped) and not re.search(r"\d", stripped):
+            return None
+        if re.match(r"^(?:table\s+of\s+contents|contents|index|summary|overview)\s*$", stripped, re.IGNORECASE):
+            return None
+
+        if len(stripped) > 3:
             return DossierSectionInput(
                 section_id="",
-                title=line.strip(),
+                title=stripped,
                 description="",
             )
         return None
