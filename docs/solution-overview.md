@@ -129,3 +129,11 @@ $$\text{Readiness Score} = \left( \frac{\text{Validated Sections Count}}{\text{T
 2. **Unified Lifecycle View**: Correlates post-market safety signal detection with pre-market dossier compliance in one workspace.
 3. **Reproducible 1-Command Startup**: Starts both backend (FastAPI) and frontend (Next.js) concurrently with `npm run dev`.
 4. **Reliable Offline Operation**: Built-in deterministic fallback engines guarantee complete functionality even without external cloud LLM credentials.
+
+---
+
+## 8. Synthetic Benchmark Dossier Disclosure
+
+To maintain absolute regulatory transparency:
+- **Synthetic Test Dossier**: The candidate dossier presets (including BOB-701 Oncology IND outline and Vioxx NDA 21-042 outline) and the test benchmark dataset used for evaluating the completeness scoring engine consist of **104 checkable ICH M4 entries** (57 PRESENT, 47 MISSING; yielding a raw completeness score of 54.81%, displayed and rounded to 55%).
+- **Verification Purpose**: These datasets are strictly synthetic benchmark dossiers engineered against published ICH M4 CTD specifications to validate the gap detection engine, regression tests, and PDF parser. They do not represent confidential or actual sponsor submission files.

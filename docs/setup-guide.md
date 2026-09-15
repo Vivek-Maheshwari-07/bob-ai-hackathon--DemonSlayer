@@ -60,7 +60,7 @@ python -m venv .venv
 # Install dependencies
 pip install -r requirements.txt
 
-# Run the complete test suite (114 tests)
+# Run the complete test suite (121 tests)
 python -m pytest
 
 # Start Uvicorn server
@@ -170,9 +170,11 @@ npm test
 
 ---
 
-## 7. Cloud Deployment Guide (Free / Simple)
+## 7. Cloud Deployment Guide (Reference Only)
 
-If deploying a live cloud instance for demonstration:
+> **Submission Evaluation Note**: For this official submission, PharmSignals is evaluated via local execution (`npm run dev`) and the official recorded demonstration video ([https://youtu.be/7POfIsw83OA](https://youtu.be/7POfIsw83OA)). The live deployment status in `demo/live-demo-url.txt` is intentionally set to `NOT DEPLOYED`. The optional steps below are provided strictly as reference architecture for hosting.
+
+If deploying a live cloud instance in an enterprise environment:
 
 ### Step 1: Deploy FastAPI Backend (Render / Railway)
 1. **Render (https://render.com)**:

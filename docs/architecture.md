@@ -131,8 +131,32 @@ sequenceDiagram
 
 ---
 
-## Security & Data Privacy Considerations
+## Component Table
 
-1. **Local-First Processing**: Sensitive clinical data and candidate dossiers are processed in-memory without persistent external transmission.
-2. **Deterministic Fallback**: Offline expert rule engines ensure full functionality without requiring external cloud LLM connections.
-3. **Zero Secrets in Source**: All API credentials reside in local environment files (`.env`) excluded from version control.
+| Layer | Component | Technology | Responsibility |
+|---|---|---|---|
+| **Frontend** | Client Interface | Next.js 14, React 18, Tailwind CSS, Recharts | Interactive dashboards, Bubble Charts, 2D PCA cluster landscapes, CTD meters, Bob drawer |
+| **API** | REST Gateway | FastAPI, Uvicorn, Pydantic v2 | 17 REST endpoints, asynchronous request handling, schema validation, CORS |
+| **Analytics (M1)** | Ingestion & Clustering | Pandas, scikit-learn (`KMeans`, `PCA`, `StandardScaler`) | openFDA FAERS cleaning, 7-dimension clustering into 4 clinical phenotypes |
+| **Analytics (M2)** | PRR & Chi-Square | NumPy, SciPy (`scipy.stats.chi2`) | Evans disproportionality, Yates continuity correction, 95% log-normal CIs |
+| **Analytics (M3)** | Digital Twin Backtest | Pandas, NumPy | Longitudinal monthly walk-forward simulation, early detection lead-time calculation |
+| **Readiness (M4)** | ICH M4 RAG Engine | In-Memory Retrieval, Pydantic v2 | Authoritative Modules 1–5 guideline verification, completeness scoring, gap severity |
+| **Copilot** | Domain Reasoning | IBM Bob, Gemini 2.5 Flash, Rule Fallback | Live domain context injection, explainable clinical narrative, zero-hallucination fallback |
+
+---
+
+## Security, Scalability & Limitations
+
+### Security & Privacy
+1. **Local & In-Memory Compute**: All FAERS record processing, contingency tables, and candidate dossier parsing happen in-memory without persistent external database leaks.
+2. **Stateless Processing**: Uploaded PDF dossiers and raw outline texts are parsed ephemerally; no proprietary sponsor documents are retained.
+3. **Zero Secrets in Source**: No credentials are committed to version control; dummy placeholders are provided in `src/.env.example`.
+
+### Scalability Considerations
+1. **Vectorized Analytics**: PRR and $\chi^2$ calculations leverage vectorized NumPy operations, handling tens of thousands of drug-event pairs in sub-second response windows.
+2. **Modular Architecture**: Backend analytical engines (M1–M4) operate independently and can be decoupled into microservices or distributed Celery worker tasks for enterprise-scale FAERS batch loads.
+3. **Client-Side Rendering**: High-density interactive charts (Bubble Chart, 2D PCA Landscape) are rendered client-side using Recharts and Web APIs for smooth interactivity.
+
+### Limitations
+1. **Decision Support Only**: The platform is an analytical assistant for safety and regulatory teams and does not replace statutory health authority filings or qualified clinical judgment.
+2. **Historical openFDA Electronic Records**: FAERS electronic data begins in 2004; earlier historical events (e.g. Baycol 2001) are handled with explicit electronic boundary notices.

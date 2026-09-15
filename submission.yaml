@@ -18,22 +18,26 @@ submission:
   title: "Drug Safety Signal Detector & Regulatory Submission Readiness Checker"
   problem_statement_id: "P2"
   problem_statement: >-
-    Pharmacovigilance and regulatory teams face significant challenges in detecting emerging
-    drug safety signals from voluminous adverse-event data and ensuring Common Technical Document
-    (CTD) dossiers conform to ICH M4 completeness standards. Manual cross-referencing and fragmented
-    workflows lead to delayed safety investigations and submission bottlenecks.
+    FDA's FAERS database has 20M+ adverse event reports. Vioxx caused 27,000+ heart
+    attacks before its signal was acted on. Separately, a drug approval CTD dossier spans
+    100,000+ pages across 5 modules — one missing section gets it rejected, costing 6–12
+    months and $50–100M. Both problems share the same root cause: too much complex
+    data for manual review.
   solution_summary: >-
-    A dual-capability intelligence platform combining pharmacovigilance adverse-event signal
-    detection (real openFDA FAERS data ingestion, disproportionality scoring via Evans Proportional
-    Reporting Ratio [PRR] and chi-square, and digital-twin walk-forward backtesting) with an automated
-    ICH M4 CTD dossier readiness checker (readiness percentage, module-wise scoring, critical gap reporting),
-    augmented by an interactive IBM Bob AI Copilot for explainable natural-language inquiries.
+    PharmSignals is a dual-mode clinical intelligence and regulatory platform built with IBM Bob:
+    (1) Signal Detection — ingests openFDA FAERS adverse event reports, clusters events across
+    clinical features, and calculates Evans PRR statistics and Chi-square to flag emerging safety signals
+    with walk-forward longitudinal backtesting; (2) Submission Readiness — checks dossier outlines
+    against ICH M4 CTD requirements (Modules 1–5), scores completeness per module, and generates
+    prioritized gap reports, supported by an interactive IBM Bob Copilot.
   key_features:
-    - "Real openFDA FAERS adverse event data ingestion, cleaning, and normalization across benchmark drugs (VIOXX, BAYCOL, AVANDIA)"
-    - "PRR (Proportional Reporting Ratio) and Pearson chi-square disproportionality signal detection with standard regulatory thresholds"
-    - "Digital-twin time-series PRR trajectory projection and historical regulatory action walk-forward backtesting"
-    - "ICH M4-aligned CTD dossier structural inspection and section completeness verification"
-    - "Overall submission-readiness percentage and module-wise readiness scoring (Modules 1-5)"
-    - "Critical missing document/section identification and gap report generation"
-    - "IBM Bob AI Copilot for natural-language safety signal and regulatory readiness investigation"
-  status: "Completed end-to-end M1-M5 pipeline with real openFDA FAERS data, interactive PRR analytics, ICH M4 readiness RAG, and IBM Bob AI Copilot"
+    - "openFDA FAERS adverse event ingestion and normalization across post-marketing surveillance datasets"
+    - "Evans PRR (Proportional Reporting Ratio) and Pearson Chi-square disproportionality signal detection"
+    - "Multi-dimensional adverse event clustering across 7 clinical/demographic features with 2D PCA projection"
+    - "Walk-forward longitudinal PRR trajectory backtesting demonstrating early signal detection (+242 days on Vioxx)"
+    - "ICH M4 CTD compliance engine scoring dossier completeness across Modules 1 through 5"
+    - "Priority Regulatory Gap Matrix classifying omissions by severity (CRITICAL, MAJOR, STANDARD) with citations"
+    - "IBM Bob Copilot with live domain context injection and deterministic offline rule-based fallback"
+  repository_url: "https://github.com/Vivek-Maheshwari-07/bob-ai-hackathon--DemonSlayer"
+  demo_video_url: "https://youtu.be/7POfIsw83OA"
+  live_demo_url: "NOT DEPLOYED"

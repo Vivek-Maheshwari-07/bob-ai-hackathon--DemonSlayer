@@ -1,33 +1,28 @@
-# Application Screenshots & Trajectory Visualizations
+# Application Screenshots
 
-This directory contains verified visual captures and analytical trajectories from the **PharmSignals** platform.
+This directory contains verified visual captures of the running **PharmSignals** platform interface (captured from local runtime at `http://localhost:3000`).
 
-## Application Interface Screenshots
+## Genuine Application Interface Screenshots
 
-1. **PharmSignals Central Dashboard (`01-dashboard-overview.png` / `01-dashboard.png`)**:
-   - High-level pharmacovigilance intelligence overview displaying key clinical metrics (222 Confirmed Signals, Peak PRR 1725.08x, CTD Submission Readiness percentage, Critical Gaps count).
-   - Interactive Adverse Event Bubble Chart with $\text{PRR} = 2.0$ critical threshold reference line.
+1. **`01-dashboard.png` — Central Pharmacovigilance Dashboard**:
+   - Executive intelligence view displaying key clinical and regulatory metrics (Confirmed Signals, Peak PRR, CTD Submission Readiness percentage, Critical Gap count).
+   - Interactive Adverse Event Bubble Chart plotting Proportional Reporting Ratio (PRR) vs. case counts with a $\text{PRR} = 2.0$ critical threshold reference line.
 
-2. **High-Priority Signals Registry (`02-high-priority-signals.png`)**:
-   - Ranked FAERS surveillance table sorted by Proportional Reporting Ratio (PRR) descending with Pearson $\chi^2$ statistics, Case Counts ($a$), and 95% Confidence Intervals.
+2. **`02-signal-detection.png` — Signal Detection Workspace (Mode 1)**:
+   - Interactive 2×2 Contingency Table Calculator with benchmark presets (*Vioxx / MI*, *Baycol / Rhabdomyolysis*, *Avandia / Heart Failure*) evaluating Evans disproportionality criteria and Pearson $\chi^2$.
+   - Adverse Event Multidimensional Clustering Studio powered by scikit-learn (`StandardScaler`, `KMeans`, `PCA` 2D projection) across 7 clinical and demographic features with 4 clinical cluster archetypes.
+   - Surveillance table ranking adverse event pairs with PRR, confidence intervals, and case volume.
 
-3. **Adverse Event Clustering Studio (`03-clustering-studio.png` / `02-signal-detection.png`)**:
-   - Multi-dimensional adverse event clustering powered by scikit-learn (`StandardScaler`, `KMeans`, `PCA` 2D projection) across 7 clinical and demographic features.
-   - Interactive 2D clinical scatter landscape with 4 clinical cluster archetypes (*Cluster 1: Acute Ischemia & High Mortality*, *Cluster 2: General Systemic & Moderate Reactions*, *Cluster 3: Organ Toxicity & Hospitalization*, *Cluster 4: Metabolic & Fluid Decompensation*).
+3. **`03-historical-analysis.png` — Historical Longitudinal Backtest & Lead Time**:
+   - Longitudinal walk-forward PRR trajectory for Vioxx (Myocardial Infarction) demonstrating signal emergence on `2004-01-31` ahead of FDA market action on `2004-09-30` (**+242 days early detection lead time**).
+   - Comparative backtest selector for Vioxx, Baycol, and Avandia.
 
-4. **2×2 Contingency Table Analysis (`04-contingency-analysis.png`)**:
-   - Interactive 2×2 Contingency Table Calculator with real openFDA benchmark presets (*Vioxx / MI*, *Baycol / Rhabdomyolysis*, *Avandia / Heart Failure*) and Evans criterion statistical evaluation.
+4. **`04-submission-readiness.png` — ICH M4 CTD Submission Readiness Audit (Mode 2)**:
+   - Automated CTD dossier structure audit across Modules 1 to 5 with circular overall readiness gauge and module progress meters.
+   - Preset candidate dossier selector (Vioxx NDA 21-042, BOB-701 Oncology IND, Phase 1 IND EXP-101), raw text input, and PDF upload.
+   - Priority Regulatory Gap Matrix classifying missing sections by severity (`CRITICAL`, `MAJOR`, `STANDARD`) with official ICH M4 guideline citations.
 
-5. **Historical Longitudinal Validation & Lead Time (`05-historical-backtest.png`)**:
-   - M3 Digital Twin simulation showcasing walk-forward longitudinal PRR trajectory for Vioxx (Myocardial Infarction) crossing threshold at `2004-01-31` ahead of FDA market action `2004-09-30` (**+242 days early detection lead time**).
+5. **`05-reports-and-export.png` — Reports & Regulatory Data Export**:
+   - Regulatory report workspace allowing safety officers to export FAERS signal analytics (JSON/CSV), download gap audit summaries, and cross-reference clinical trajectories.
 
-6. **ICH M4 Dossier Submission Readiness Checker (`03-readiness-checker.png`)**:
-   - Automated CTD dossier structure audit across Modules 1 to 5.
-   - Circular Overall Completeness Score Gauge alongside horizontal module progress meters.
-   - Filterable **Priority Regulatory Gap Matrix** with severity classification (`CRITICAL`, `MAJOR`, `STANDARD`), official ICH M4 citations, and actionable remediation roadmaps.
-
-## Analytical Trajectory Benchmark Visualizations
-
-- **`VIOXX_trajectory.png`**: Longitudinal monthly PRR walk-forward trajectory demonstrating **+242 days of early safety signal detection** prior to FDA market withdrawal.
-- **`AVANDIA_trajectory.png`**: Longitudinal PRR trajectory demonstrating **+1,205 days of early detection lead time** for rosiglitazone congestive heart failure.
-- **`BAYCOL_trajectory.png`**: Empirical analysis of electronic openFDA boundary constraints for pre-2004 cerivastatin reporting.
+> **Note**: Trajectory benchmark analytical charts are generated by the analytical engine and stored in `src/backend/app/data/m3_digital_twin/trajectory_plots/`.
