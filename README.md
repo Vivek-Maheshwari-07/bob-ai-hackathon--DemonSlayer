@@ -19,16 +19,17 @@
 
 ## Problem Statement
 
-Life sciences safety and regulatory operations face two critical, interrelated operational bottlenecks:
+Life sciences safety and regulatory operations face two critical, interrelated operational bottlenecks sharing the same root cause: **too much voluminous, complex data for manual review workflows**:
 
-1. **Post-Marketing Pharmacovigilance & Safety Surveillance**:
-   - The FDA Adverse Event Reporting System (FAERS) contains over 20 million spontaneous reports. High report velocity makes early detection of emerging safety signals difficult.
-   - Historical tragedies such as Vioxx (Rofecoxib) resulted in an estimated 27,000+ excess cardiovascular events before regulatory market withdrawal due to delayed disproportionality identification.
-2. **Pre-Marketing Regulatory Dossier Complexity**:
-   - Common Technical Document (CTD) dossiers span 100,000+ pages across 5 complex modules (Administrative, Summaries, Quality/CMC, Nonclinical, Clinical).
-   - Manual checklist verification is slow and error-prone; a single missing mandatory section causes severe Refusal-to-File (RTF) delays.
+1. **Post-Marketing Pharmacovigilance & Safety Surveillance (Mode 1)**:
+   - The FDA Adverse Event Reporting System (FAERS) contains over **20 million+ spontaneous adverse event reports**. High report velocity and confounding factors make early detection of subtle, emerging safety signals difficult.
+   - Historical tragedies such as **Vioxx (Rofecoxib)** resulted in an estimated **27,000+ excess heart attacks / cardiovascular events** before regulatory market withdrawal due to delayed disproportionality identification.
+2. **Pre-Marketing Regulatory Dossier Complexity (Mode 2)**:
+   - Common Technical Document (CTD) dossiers span **100,000+ pages across 5 complex modules** (Administrative, Summaries, Quality/CMC, Nonclinical, Clinical).
+   - Manual checklist verification is slow and error-prone; a single missing mandatory section causes immediate **Refusal-to-File (RTF)** rejections, costing sponsors **6–12 months of delayed market authorization** and **$50–$100 million** in direct expenses and lost exclusivity.
 3. **Workflow Silos**:
    - Pharmacovigilance and regulatory affairs teams operate in disconnected systems without unified tools linking emerging safety signals to dossier remediation.
+
 
 ---
 

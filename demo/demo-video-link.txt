@@ -7,9 +7,7 @@
 # TODO [ACTION REQUIRED BEFORE FINAL PUSH]:
 # Replace the placeholder line below with your public video recording URL
 # (e.g., YouTube, Loom, or Google Drive link with public view permissions).
-#
-# Format:
-# https://youtu.be/your-video-id  OR  https://www.loom.com/share/your-video-id
 # ---------------------------------------------------------------------------
 
-NOT PROVIDED
+VIDEO LINK PENDING
+

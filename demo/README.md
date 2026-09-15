@@ -12,6 +12,7 @@ This directory contains the submission artifacts demonstrating the functionality
 
 ## Current Status
 
-- Video Link: `NOT AVAILABLE YET` (To be updated upon recording)
-- Live Deployment: `NOT DEPLOYED` (To be updated upon deployment)
-- Screenshots: Placeholder documentation in `screenshots/README.md`
+- Video Link: `VIDEO LINK PENDING` (To be updated upon recording)
+- Live Deployment: `NOT DEPLOYED` (Local execution instructions in `docs/setup-guide.md`)
+- Screenshots: Verified application captures and trajectory benchmarks documented in `screenshots/README.md`
+
