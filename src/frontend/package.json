@@ -1,6 +1,6 @@
 {
-  "name": "drug-safety-ctd-checker-frontend",
-  "version": "0.1.0",
+  "name": "pharmsignals-frontend",
+  "version": "1.0.0",
   "private": true,
   "scripts": {
     "dev": "next dev",

@@ -11,7 +11,7 @@ flowchart TD
     U[Safety & Regulatory Users] --> F[PharmSignals Enterprise Frontend (Next.js 14)]
 
     subgraph Presentation_Layer [Presentation Layer (Module M5)]
-        F --> V1[Mode 1: Signal Detection & Bubble Chart]
+        F --> V1[Mode 1: Signal Detection, Clustering Studio & Bubble Chart]
         F --> V2[Historical Longitudinal Backtesting View]
         F --> V3[Mode 2: ICH M4 Submission Readiness View]
         F --> COPILOT[Docked IBM Bob AI Copilot Drawer]
@@ -20,7 +20,8 @@ flowchart TD
     F --> API[FastAPI Application Backend (Port 8000)]
 
     subgraph Backend_Services [Backend Analytical & RAG Engines]
-        API --> M1[Module M1: FAERS Ingestion & Normalization]
+        API --> M1[Module M1: FAERS Ingestion, Cleaning & Normalization]
+        M1 --> CLUSTER[Module M1: Adverse Event Clustering Engine (scikit-learn KMeans & PCA)]
         M1 --> M2[Module M2: Evans PRR & Chi-Square Engine]
         M2 --> M3[Module M3: Digital Twin Time-Series Trajectory]
         
@@ -38,6 +39,7 @@ flowchart TD
         BOB --> FALLBACK
     end
 
+    CLUSTER --> F
     M2 --> F
     M3 --> F
     M4 --> F
@@ -52,9 +54,10 @@ flowchart TD
 - **Framework**: React 18, Next.js 14 (App Router), TypeScript, Tailwind CSS, Recharts
 - **Design System**: White-first clinical enterprise layout (PharmSignals) with high information density, compact cards, and accessible semantic colors.
 - **Responsibilities**:
+  - **Adverse Event Clustering Studio**: Interactive 2D PCA Clinical Landscape displaying multi-dimensional clusters with interactive hover inspection and cluster archetype cards (*Acute Ischemia*, *Severe Organ Toxicity*, *Metabolic Syndromes*, *General Reactions*).
   - **Adverse Event Bubble Chart**: Plots Proportional Reporting Ratio (PRR) vs. Case Count ($a$) with a critical reference line at $\text{PRR} = 2.0$.
   - **High-Priority Signals Table**: Ranked tabular view of confirmed FAERS safety signals with instant triage actions.
-  - **2×2 Interactive Calculator**: Real-time contingency matrix calculation for candidate drug-event pairs.
+  - **2×2 Interactive Calculator**: Real-time contingency matrix calculation for candidate drug-event pairs with benchmark presets.
   - **Historical Backtesting Station**: Reconstructs monthly PRR trajectories across historical benchmarks (Vioxx, Avandia, Baycol).
   - **Submission Readiness View**: Circular readiness gauge, horizontal CTD Module 1–5 progress meters, and filterable priority regulatory gap matrix.
   - **IBM Bob Copilot Drawer**: Docked conversational assistant for natural-language safety and regulatory inquiries.
@@ -62,13 +65,16 @@ flowchart TD
 ### 2. Application API Layer (Backend — FastAPI)
 - **Framework**: Python 3.10+, FastAPI, Uvicorn, Pydantic v2, HTTPX
 - **Responsibilities**:
-  - Exposes RESTful endpoints for signal summary, custom 2×2 calculations, backtest trajectories, CTD dossier evaluations (text, JSON, PDF), and conversational copilot inquiries.
+  - Exposes RESTful endpoints for signal summary, multidimensional clustering (`/api/v1/signals/clusters`), custom 2×2 calculations, backtest trajectories, CTD dossier evaluations (text, JSON, PDF), and conversational copilot inquiries.
   - Enforces schema validation and structured error handling.
   - Manages stateless compute with sub-second response times.
 
 ### 3. Data Processing & Analytical Engines (Modules M1, M2, M3)
 - **FAERS Ingest & Normalization Engine (M1)**:
   - Ingests real openFDA FAERS adverse event datasets, performs uppercase MedDRA term normalization, and constructs 2×2 contingency tables ($a, b, c, d$).
+- **Adverse Event Clustering Engine (M1 / ML)**:
+  - Uses `scikit-learn` (`StandardScaler`, `KMeans`, `PCA`) to cluster adverse event feature vectors across 7 dimensions: $\log(\text{PRR})$, $\log(\text{Cases})$, Mortality Rate, Hospitalization Rate, Serious Event Rate, Mean Patient Onset Age, and Female Sex Ratio.
+  - Produces clinically interpretable cluster archetypes and 2D coordinates for interactive frontend exploration.
 - **Evans PRR Signal Detection Engine (M2)**:
   - Computes Proportional Reporting Ratios (PRR), Pearson Chi-Square ($\chi^2$), $p$-values, and log-normal 95% Confidence Intervals:
     $$\text{PRR} = \frac{a / (a + b)}{c / (c + d)}$$

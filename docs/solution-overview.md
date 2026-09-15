@@ -61,6 +61,14 @@ $$\text{Lower / Upper CI} = \exp\left( \ln(\text{PRR}) \pm 1.96 \sqrt{\frac{1}{a
 - **`WEAK_SIGNAL`**: Borderline PRR ($\ge 1.5$) or marginal Chi-Square ($\ge 2.0$).
 - **`NOISE`**: Does not satisfy statistical disproportionality thresholds.
 
+### Multidimensional Adverse Event Clustering (scikit-learn KMeans & PCA)
+PharmSignals groups adverse events into clinical archetypes using unsupervised machine learning across 7 clinical, statistical, and demographic dimensions:
+$$\mathbf{x} = [\ln(\text{PRR}), \ln(a), \text{Mortality Rate}, \text{Hospitalization Rate}, \text{Serious Event Rate}, \text{Mean Onset Age}, \text{Female Ratio}]$$
+- **Feature Normalization**: Z-score standardization via `StandardScaler`.
+- **Partitioning**: $K$-Means clustering ($k \in [2, 8]$, default $k=4$).
+- **Dimensionality Reduction**: 2-component Principal Component Analysis (PCA) projecting feature vectors onto an interactive 2D clinical landscape.
+- **Archetype Output**: Automatically classifies clusters into explainable phenotypes (*Acute Ischemia & High Mortality*, *Organ Toxicity & Hospitalization*, *Metabolic & Fluid Decompensation*, *General Systemic Reactions*).
+
 ---
 
 ## 4. Digital-Twin Historical Backtesting (M3)

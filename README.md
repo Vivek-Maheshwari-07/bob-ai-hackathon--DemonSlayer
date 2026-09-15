@@ -50,6 +50,7 @@ PharmSignals delivers two core, production-grade workflows in a unified white-fi
 ## Key Features
 
 - **Real openFDA FAERS Ingestion (M1)**: Automated parsing, deduplication, and MedDRA term normalization across benchmark drug populations.
+- **Multidimensional Adverse Event Clustering (M1)**: Real-time unsupervised clustering via `scikit-learn` (`StandardScaler`, `KMeans`, `PCA` 2D projection) across 7 clinical features (PRR, cases, mortality rate, hospitalization rate, serious event rate, mean age, sex ratio) surfacing distinct clinical phenotypes (*Acute Ischemia & High Mortality*, *Organ Toxicity / Rhabdomyolysis*, *Metabolic & Fluid Decompensation*, *General Systemic Reactions*).
 - **Evans PRR Signal Engine (M2)**: Automated mathematical computation of PRR, Pearson Chi-Square ($\chi^2$), $p$-values, and log-normal 95% Confidence Intervals with standard regulatory classification (`SIGNAL`, `WEAK_SIGNAL`, `NOISE`).
 - **Interactive 2×2 Contingency Workspace**: Real-time custom disproportionality calculations with 1-click benchmark presets (*Vioxx MI*, *Baycol Rhabdo*, *Avandia Heart Failure*, *Ibuprofen Non-Signal*).
 - **Digital Twin Walk-Forward Backtesting (M3)**: Reconstructs longitudinal monthly PRR trajectories demonstrating **242 days (~8 months)** of early detection lead time before Vioxx's market withdrawal.
@@ -93,7 +94,10 @@ flowchart TD
 
 ## Screenshots
 
-The repository includes visual captures of the verified historical trajectories and clinical analytics:
+The repository includes visual captures of the application user interface and verified historical trajectories:
+- **PharmSignals Central Dashboard UI**: [demo/screenshots/01-dashboard.png](demo/screenshots/01-dashboard.png)
+- **Signal Detection & Adverse Event Clustering Studio**: [demo/screenshots/02-signal-detection.png](demo/screenshots/02-signal-detection.png)
+- **ICH M4 Dossier Submission Readiness Matrix**: [demo/screenshots/03-readiness-checker.png](demo/screenshots/03-readiness-checker.png)
 - **Vioxx PRR Trajectory Benchmark (+242d Lead Time)**: [demo/screenshots/VIOXX_trajectory.png](demo/screenshots/VIOXX_trajectory.png)
 - **Avandia PRR Trajectory Benchmark (+1,205d Lead Time)**: [demo/screenshots/AVANDIA_trajectory.png](demo/screenshots/AVANDIA_trajectory.png)
 - **Baycol Electronic Boundary Benchmark**: [demo/screenshots/BAYCOL_trajectory.png](demo/screenshots/BAYCOL_trajectory.png)
@@ -105,12 +109,12 @@ The repository includes visual captures of the verified historical trajectories 
 | Layer | Technology | Purpose |
 |---|---|---|
 | **Frontend** | Next.js 14 (App Router), React 18, TypeScript, Tailwind CSS | High-performance, white-first clinical enterprise workspace |
-| **Visual Analytics** | Recharts | Adverse event bubble charts, time-series PRR curves, module progress meters |
+| **Visual Analytics** | Recharts | Adverse event bubble charts, 2D PCA cluster landscapes, time-series PRR curves, module progress meters |
 | **Backend API** | Python 3.10+, FastAPI, Uvicorn, Pydantic v2 | High-throughput asynchronous REST API services |
-| **Statistical Engine** | NumPy, SciPy, Pandas | Vectorized Evans PRR, Pearson Chi-Square, and contingency table math |
+| **Machine Learning & Stats** | scikit-learn, NumPy, SciPy, Pandas | KMeans clustering, PCA 2D reduction, Evans PRR, Pearson Chi-Square, and contingency table math |
 | **RAG & Knowledge Base** | In-Memory Retrieval Index | Authoritative ICH M4 guideline retrieval and section verification |
 | **AI Copilot** | IBM Bob / Google Gemini 2.5 Flash / watsonx.ai | Grounded clinical explanation and regulatory remediation planning |
-| **DevOps & Process Runner** | Concurrently, Node.js, Pytest | Cross-platform 1-command startup and 118 automated tests |
+| **DevOps & Process Runner** | Concurrently, Node.js, Pytest | Cross-platform 1-command startup and 121 automated tests |
 
 ---
 
@@ -268,6 +272,8 @@ Copy `src/.env.example` to `src/.env` if you wish to configure external credenti
 | `GET` | `/api/v1/health` | Subsystem heartbeat check | None | Subsystem health states |
 | `GET` | `/api/v1/signals/` | List all indexed FAERS signals | `drug`, `status_filter` | Filtered list of PRR records |
 | `GET` | `/api/v1/signals/summary` | Global signal statistics | None | Total pairs, confirmed count, top signals |
+| `GET` | `/api/v1/signals/clusters` | Adverse event multidimensional clustering | `n_clusters`, `drug`, `force_refresh` | Clusters profiles & 2D PCA coordinates |
+| `POST` | `/api/v1/signals/clusters` | Custom adverse event clustering | `{n_clusters, drug, force_refresh}` | Clusters payload |
 | `POST` | `/api/v1/signals/calculate` | Custom 2×2 PRR calculation | `{a, b, c, d}` or margins | PRR, $\chi^2$, 95% CI, explanation |
 | `GET` | `/api/v1/signals/backtest/{drug}` | Historical digital-twin backtest | `drug` path parameter | Trajectory, lead time days, verdict |
 | `GET` | `/api/v1/m4/presets` | List benchmark candidate dossiers | None | Pre-loaded NDA/IND outlines |
@@ -300,13 +306,14 @@ IBM Bob is deeply integrated as a specialized, context-aware conversational copi
 
 1. **Research & Decision-Support Scope**: PharmSignals is an analytical decision-support prototype and does not replace statutory health authority filings or qualified medical judgment.
 2. **OpenFDA Record Boundaries**: Electronic openFDA reporting records begin in 2004; historical events prior to 2004 (such as Baycol's 2001 withdrawal) are transparently identified rather than synthesized.
-3. **Adverse Event Clustering**: Event clustering algorithms are currently in development; the platform honestly labels clustering analysis as disabled rather than displaying fabricated groupings.
+3. **Adverse Event Clustering Scope**: Event clustering utilizes unsupervised K-Means and 2-component PCA projection over 7 normalized feature dimensions (disproportionality, mortality, hospitalization, serious severity, patient onset age, and sex demographics). While highly effective for identifying high-risk clinical phenotypes (e.g. acute ischemia vs. rhabdomyolysis vs. fluid retention), clinical sub-phenotyping is constrained to available FAERS demographic reporting fields.
 
 ---
 
 ## Known Issues
 
-- **None**: No blocking bugs or build issues at the time of submission. All 118 automated tests pass and the frontend compiles cleanly.
+- **None**: No blocking bugs or build issues at the time of submission. All 121 automated tests pass and the frontend compiles cleanly.
+
 
 ---
 

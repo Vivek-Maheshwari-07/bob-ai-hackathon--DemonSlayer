@@ -1,7 +1,7 @@
 {
-  "name": "pharma-vigil-ai-platform",
+  "name": "pharmsignals",
   "version": "1.0.0",
-  "description": "Drug Safety Signal Detector & Regulatory Submission Readiness Checker — IBM Bobathon 2026 P2",
+  "description": "PharmSignals: Drug Safety Signal Detector & Regulatory Submission Readiness Checker — IBM Bobathon 2026 P2",
   "scripts": {
     "dev": "concurrently -k -p \"[{name}]\" -n \"BACKEND,FRONTEND\" -c \"cyan.bold,magenta.bold\" \"npm run dev:backend\" \"npm run dev:frontend\"",
     "dev:backend": "python -m uvicorn app.main:app --app-dir src/backend --host 0.0.0.0 --port 8000 --reload",

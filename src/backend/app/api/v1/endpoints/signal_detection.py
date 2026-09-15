@@ -11,6 +11,7 @@ except ImportError:
     httpx = None
 
 from app.m1_faers.faers_ingest import run_m1_pipeline
+from app.m1_faers.clustering import compute_adverse_event_clusters
 from app.m2_prr.prr_engine import (
     calculate_prr,
     classify_signal,
@@ -399,3 +400,53 @@ async def get_drug_backtest(drug_name: str) -> Dict[str, Any]:
         raise HTTPException(status_code=404, detail=str(e))
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+
+class ClusterAnalysisRequest(BaseModel):
+    n_clusters: int = Field(default=4, ge=2, le=8, description="Number of clusters to generate")
+    drug: Optional[str] = Field(default=None, description="Optional drug name filter")
+    force_refresh: bool = Field(default=False, description="Force recomputation bypassing cache")
+
+
+@router.get(
+    "/clusters",
+    summary="Cluster Adverse Event Reports (scikit-learn KMeans)",
+    description=(
+        "Executes multi-dimensional clinical clustering on FAERS adverse event reports using "
+        "scikit-learn StandardScaler, KMeans, and PCA 2D dimensionality reduction."
+    ),
+)
+async def get_adverse_event_clusters(
+    n_clusters: int = Query(default=4, ge=2, le=8, description="Number of clusters (2-8)"),
+    drug: Optional[str] = Query(default=None, description="Optional drug name filter (VIOXX, AVANDIA, BAYCOL)"),
+    force_refresh: bool = Query(default=False, description="Bypass in-memory cache"),
+) -> Dict[str, Any]:
+    """Returns scikit-learn adverse event clusters and 2D PCA projection coordinates."""
+    try:
+        return compute_adverse_event_clusters(
+            n_clusters=n_clusters,
+            drug_filter=drug,
+            force_refresh=force_refresh,
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Adverse event clustering failed: {str(e)}")
+
+
+@router.post(
+    "/clusters",
+    summary="Custom Adverse Event Clustering Request",
+    description="Executes clustering with customizable parameter payload.",
+)
+async def post_adverse_event_clusters(
+    payload: ClusterAnalysisRequest = Body(...),
+) -> Dict[str, Any]:
+    """Runs clustering analysis based on POST payload parameters."""
+    try:
+        return compute_adverse_event_clusters(
+            n_clusters=payload.n_clusters,
+            drug_filter=payload.drug,
+            force_refresh=payload.force_refresh,
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Adverse event clustering failed: {str(e)}")
+

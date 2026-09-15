@@ -134,12 +134,18 @@ Execute these verification commands from any terminal to confirm all subsystems 
    ```
    *Response:* `{"drug_name":"VIOXX","lead_time_days":242,...}`
 
-4. **Candidate CTD Dossier Presets (M4 Engine)**:
+4. **Adverse Event Clustering (M1 ML Engine)**:
+   ```bash
+   curl "http://localhost:8000/api/v1/signals/clusters?n_clusters=4"
+   ```
+   *Response:* `{"clusters":[{"cluster_id":1,"cluster_name":"Cluster 1: Acute Ischemia & High Mortality",...}],...}`
+
+5. **Candidate CTD Dossier Presets (M4 Engine)**:
    ```bash
    curl http://localhost:8000/api/v1/m4/presets
    ```
 
-5. **Frontend Web UI**:
+6. **Frontend Web UI**:
    Open `http://localhost:3000` in Google Chrome, Edge, or Firefox.
 
 ---
@@ -153,8 +159,9 @@ npm test
 ```
 *(Equivalent to `python -m pytest src/backend`)*
 
-**Test Suite Coverage (118 Tests):**
+**Test Suite Coverage (121 Tests):**
 - `test_health.py`: Subsystem heartbeat & API status (2 tests)
+- `test_clustering.py`: Multi-dimensional KMeans & PCA adverse event clustering (3 tests)
 - `test_m1_faers.py`: FAERS data ingestion, cleaning & normalization (9 tests)
 - `test_m2_prr.py`: Evans PRR calculation, $\chi^2$, 95% CI & classification (13 tests)
 - `test_copilot_and_custom_calc.py`: Custom 2×2 calculation & IBM Bob Copilot (13 tests)
@@ -163,7 +170,32 @@ npm test
 
 ---
 
-## 7. Troubleshooting Guide
+## 7. Cloud Deployment Guide (Free / Simple)
+
+If deploying a live cloud instance for demonstration:
+
+### Step 1: Deploy FastAPI Backend (Render / Railway)
+1. **Render (https://render.com)**:
+   - Create a **New Web Service** linked to your GitHub repository.
+   - **Root Directory**: `src/backend`
+   - **Environment**: `Python 3`
+   - **Build Command**: `pip install -r requirements.txt`
+   - **Start Command**: `uvicorn app.main:app --host 0.0.0.0 --port $PORT`
+   - Note the deployed URL (e.g., `https://pharmsignals-api.onrender.com`).
+
+### Step 2: Deploy Next.js Frontend (Vercel)
+1. **Vercel (https://vercel.com)**:
+   - Click **Add New Project** and import the repository.
+   - **Root Directory**: `src/frontend`
+   - **Framework Preset**: `Next.js`
+   - **Environment Variables**:
+     - `NEXT_PUBLIC_API_BASE_URL`: `https://pharmsignals-api.onrender.com/api/v1` (point to deployed backend)
+   - Click **Deploy**.
+   - Copy the public URL (e.g., `https://pharmsignals.vercel.app`) into `demo/live-demo-url.txt`.
+
+---
+
+## 8. Troubleshooting Guide
 
 | Problem | Probable Cause | Recommended Solution |
 |---|---|---|
@@ -173,3 +205,4 @@ npm test
 | **Frontend displays "Backend Offline"** | FastAPI server is not reachable on port 8000 | Verify backend is running via `curl http://localhost:8000/api/v1/health`. |
 | **Missing Python packages** | Dependencies were not installed in the active environment | Run `pip install -r src/backend/requirements.txt`. |
 | **Node build fails with PostCSS error** | Incompatible Tailwind plugin version | Ensure dependencies in `src/frontend/package.json` are installed via `npm install --prefix src/frontend`. |
+

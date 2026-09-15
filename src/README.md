@@ -1,3 +1,4 @@
+
 # Source Code Directory (`src/`)
 
 This directory contains the full-stack codebase for **PharmSignals** ("Drug Safety Signal Detector & Regulatory Submission Readiness Checker" — Problem Statement P2, IBM Bobathon 2026).
@@ -22,14 +23,14 @@ src/
 └── backend/           # Python 3.10+ FastAPI Application & Analytical Compute Engines
     ├── app/
     │   ├── main.py    # FastAPI application entry point & CORS configuration
-    │   ├── api/v1/    # REST endpoints (health, signals, backtest, m4, readiness, copilot)
-    │   ├── m1_data_pipeline/   # Module M1: FAERS Ingestion & MedDRA uppercase normalization
-    │   ├── m2_signal_engine/   # Module M2: Evans PRR & Pearson Chi-Square statistical engine
-    │   ├── m3_digital_twin/    # Module M3: Longitudinal walk-forward digital twin backtester
-    │   ├── m4_ctd_checker/     # Module M4: ICH M4 CTD RAG retriever & gap report generator
+    │   ├── api/v1/    # REST endpoints (health, signals, clusters, backtest, m4, readiness, copilot)
+    │   ├── m1_faers/  # Module M1: FAERS Ingestion & scikit-learn Adverse Event Clustering
+    │   ├── m2_prr/    # Module M2: Evans PRR & Pearson Chi-Square statistical engine
+    │   ├── m3_digital_twin/ # Module M3: Longitudinal walk-forward digital twin backtester
+    │   ├── m4_rag/    # Module M4: ICH M4 CTD RAG retriever & gap report generator
     │   ├── data/      # Real openFDA FAERS pre-processed datasets & benchmark matrices
     │   └── core/      # Core settings and configuration
-    ├── tests/         # Complete automated test suite (114 pytest tests across M1–M5)
+    ├── tests/         # Complete automated test suite (121 pytest tests across M1–M5)
     ├── requirements.txt # Python dependency specification
     └── README.md      # Backend documentation
 ```

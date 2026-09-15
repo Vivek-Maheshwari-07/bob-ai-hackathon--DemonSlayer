@@ -1,1 +1,15 @@
+# ---------------------------------------------------------------------------
+# DEMO VIDEO WALKTHROUGH LINK (IBM Bobathon 2026 Submission)
+# Team Name: Demon Slayer
+# Project: PharmSignals (Drug Safety Signal Detector & CTD Readiness Checker)
+# ---------------------------------------------------------------------------
+#
+# TODO [ACTION REQUIRED BEFORE FINAL PUSH]:
+# Replace the placeholder line below with your public video recording URL
+# (e.g., YouTube, Loom, or Google Drive link with public view permissions).
+#
+# Format:
+# https://youtu.be/your-video-id  OR  https://www.loom.com/share/your-video-id
+# ---------------------------------------------------------------------------
+
 NOT PROVIDED

@@ -23,6 +23,7 @@ import {
   fetchAllSignals,
   fetchDrugBacktest,
   calculateCustomPRR,
+  fetchAdverseEventClusters,
   fetchM4Presets,
   checkCTDDossier,
   checkCTDText,
@@ -30,6 +31,11 @@ import {
   checkHealth,
   CustomPRRPayload,
 } from "../lib/api";
+import {
+  ClusterProfile,
+  ClusterPoint,
+  ClusteringResponse,
+} from "../lib/types";
 import { Sidebar, NavPage } from "../components/Sidebar";
 import { Header } from "../components/Header";
 import { MetricCard } from "../components/MetricCard";
@@ -39,6 +45,7 @@ import { LoadingState } from "../components/LoadingState";
 import { ErrorState } from "../components/ErrorState";
 import { EmptyState } from "../components/EmptyState";
 import { BobCopilotDrawer } from "../components/BobCopilotDrawer";
+
 
 // ─── Types ─────────────────────────────────────────────────────────────────
 
@@ -663,6 +670,36 @@ function SignalDetectionView({
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("ALL");
 
+  // Visual Analytics Mode: Clustering (M1) vs. Disproportionality Bubble (M2)
+  const [visualMode, setVisualMode] = useState<"clustering" | "bubble">("clustering");
+
+  // Adverse Event Clustering State (scikit-learn KMeans & PCA)
+  const [clusteringData, setClusteringData] = useState<ClusteringResponse | null>(null);
+  const [clusteringLoading, setClusteringLoading] = useState(false);
+  const [clusteringError, setClusteringError] = useState<string | null>(null);
+  const [selectedK, setSelectedK] = useState<number>(4);
+  const [clusterDrugFilter, setClusterDrugFilter] = useState<string>("ALL");
+  const [activeClusterId, setActiveClusterId] = useState<number | null>(null);
+
+  const loadClusters = useCallback(async (k: number, drug: string) => {
+    setClusteringLoading(true);
+    setClusteringError(null);
+    try {
+      const data = await fetchAdverseEventClusters(k, drug);
+      setClusteringData(data);
+    } catch (err: any) {
+      setClusteringError(err?.message || "Failed to compute adverse event clusters");
+    } finally {
+      setClusteringLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (backendOnline) {
+      loadClusters(selectedK, clusterDrugFilter);
+    }
+  }, [backendOnline, selectedK, clusterDrugFilter, loadClusters]);
+
   // Custom 2x2 Interactive Calculator State
   // Default preset: real VIOXX MI values from VIOXX_signals.csv
   const [calcDrug, setCalcDrug] = useState("ROFECOXIB (VIOXX)");
@@ -707,9 +744,6 @@ function SignalDetectionView({
   }, [backendOnline, runCustomCalculation]);
 
   // Preset Selector — real a/b/c/d values read from m2_signals CSVs
-  // VIOXX MI:    a=17938, b=26341, c=155582, d=20492829  (VIOXX_signals.csv, MYOCARDIAL INFARCTION row)
-  // BAYCOL RHABDO: a=8, b=192, c=41069, d=20651421       (BAYCOL_signals.csv, RHABDOMYOLYSIS row)
-  // AVANDIA CHF: a=26009, b=70272, c=54020, d=20542389   (AVANDIA_signals.csv, CARDIAC FAILURE CONGESTIVE row)
   const loadPreset = (presetName: string) => {
     if (presetName === "vioxx") {
       setCalcDrug("ROFECOXIB (VIOXX)");
@@ -782,23 +816,458 @@ function SignalDetectionView({
     return matchesSearch && matchesStatus;
   });
 
+  // Cluster colors
+  const clusterColors = [
+    "#e11d48", // Cluster 1: Rose / Critical (Cardiovascular & Mortality)
+    "#d97706", // Cluster 2: Amber / High (Severe Toxicity & Rhabdomyolysis)
+    "#2563eb", // Cluster 3: Blue / Moderate (Metabolic & Fluid Overload)
+    "#059669", // Cluster 4: Emerald / Standard (General Systemic)
+    "#7c3aed", // Cluster 5: Purple
+    "#0891b2", // Cluster 6: Cyan
+  ];
+
+  // Prepare Bubble Chart data for Mode 1 view
+  const bubbleData = signals.map((s, idx) => ({
+    id: idx + 1,
+    drug: s.drug_name,
+    event: s.event_term,
+    prr: Number(Number(s.prr).toFixed(2)),
+    cases: s.n_drug_event,
+    chi2: Number(Number(s.chi_square).toFixed(1)),
+    status: s.signal_status,
+  }));
+
+  // Filtered cluster points
+  const displayedPoints = (clusteringData?.points || []).filter((p) => {
+    if (activeClusterId !== null && p.cluster_id !== activeClusterId) return false;
+    return true;
+  });
+
   return (
     <div className="space-y-5">
       <PageHeader
         title="Drug Safety Signal Detection Workspace"
-        subtitle="Analyze adverse-event reports to identify potential emerging safety signals."
-        badge="Evans Criteria"
+        subtitle="Multi-dimensional adverse event clustering and Evans disproportionality surveillance on openFDA FAERS data."
+        badge="Mode 1: M1 + M2"
         actions={
-          <button
-            onClick={onRefresh}
-            disabled={loading}
-            className="px-3.5 py-1.5 rounded bg-blue-700 hover:bg-blue-800 text-white text-xs font-bold transition shadow-xs flex items-center gap-1.5 disabled:opacity-50"
-          >
-            <span>↻</span>
-            <span>{loading ? "Scanning..." : "Run Signal Scan"}</span>
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => loadClusters(selectedK, clusterDrugFilter)}
+              disabled={clusteringLoading}
+              className="px-3 py-1.5 rounded bg-white hover:bg-slate-50 text-slate-700 text-xs font-semibold border border-slate-300 transition shadow-2xs flex items-center gap-1 disabled:opacity-50"
+            >
+              <span>⚙️</span>
+              <span>{clusteringLoading ? "Clustering..." : "Re-cluster (scikit-learn)"}</span>
+            </button>
+            <button
+              onClick={onRefresh}
+              disabled={loading}
+              className="px-3.5 py-1.5 rounded bg-blue-700 hover:bg-blue-800 text-white text-xs font-bold transition shadow-xs flex items-center gap-1.5 disabled:opacity-50"
+            >
+              <span>↻</span>
+              <span>{loading ? "Scanning..." : "Run Signal Scan"}</span>
+            </button>
+          </div>
         }
       />
+
+      {/* ─── VISUAL ANALYTICS STUDIO: CLUSTERING & BUBBLE CHART ─── */}
+      <div className="rounded border border-slate-200 bg-white p-4 shadow-2xs space-y-4">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 pb-3 border-b border-slate-100">
+          <div>
+            <div className="flex items-center gap-2">
+              <h3 className="text-sm font-bold text-slate-900">
+                {visualMode === "clustering"
+                  ? "Adverse Event Multidimensional Clustering Studio (scikit-learn KMeans & PCA)"
+                  : "Adverse Event Disproportionality Bubble Chart (PRR vs. Case Count)"}
+              </h3>
+              <span className="text-[10px] px-2 py-0.5 rounded bg-blue-50 text-blue-700 font-bold border border-blue-200">
+                {visualMode === "clustering" ? "scikit-learn 1.4+ · 7 Feature Vectors" : "Evans Criteria"}
+              </span>
+            </div>
+            <p className="text-xs text-slate-500 font-medium mt-0.5">
+              {visualMode === "clustering"
+                ? "Groups adverse events across PRR disproportionality, mortality %, hospitalization %, patient age, and sex demographics."
+                : "Interactive scatter distribution of statistical signal strength against empirical case volume."}
+            </p>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2">
+            {/* View Mode Toggle */}
+            <div className="flex rounded border border-slate-200 p-0.5 bg-slate-50 text-xs font-semibold">
+              <button
+                onClick={() => setVisualMode("clustering")}
+                className={`px-3 py-1 rounded transition ${
+                  visualMode === "clustering"
+                    ? "bg-white text-blue-700 font-bold shadow-2xs border border-slate-200"
+                    : "text-slate-600 hover:text-slate-900"
+                }`}
+              >
+                🔬 Multidimensional Clusters
+              </button>
+              <button
+                onClick={() => setVisualMode("bubble")}
+                className={`px-3 py-1 rounded transition ${
+                  visualMode === "bubble"
+                    ? "bg-white text-blue-700 font-bold shadow-2xs border border-slate-200"
+                    : "text-slate-600 hover:text-slate-900"
+                }`}
+              >
+                🫧 Disproportionality Chart
+              </button>
+            </div>
+
+            {/* Clustering Controls (Visible in Clustering Mode) */}
+            {visualMode === "clustering" && (
+              <div className="flex items-center gap-2 pl-2 border-l border-slate-200">
+                <div className="flex items-center gap-1">
+                  <span className="text-[11px] font-bold text-slate-500">Clusters ($k$):</span>
+                  {[3, 4, 5].map((kVal) => (
+                    <button
+                      key={kVal}
+                      onClick={() => setSelectedK(kVal)}
+                      className={`px-2 py-0.5 text-xs font-mono font-bold rounded ${
+                        selectedK === kVal
+                          ? "bg-blue-700 text-white shadow-2xs"
+                          : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                      }`}
+                    >
+                      {kVal}
+                    </button>
+                  ))}
+                </div>
+
+                <select
+                  value={clusterDrugFilter}
+                  onChange={(e) => setClusterDrugFilter(e.target.value)}
+                  className="px-2 py-1 rounded bg-white border border-slate-300 text-slate-700 text-xs font-semibold outline-none"
+                >
+                  <option value="ALL">All Benchmark Drugs</option>
+                  <option value="VIOXX">VIOXX (Rofecoxib)</option>
+                  <option value="AVANDIA">AVANDIA (Rosiglitazone)</option>
+                  <option value="BAYCOL">BAYCOL (Cerivastatin)</option>
+                </select>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* CLUSTERING VIEW CONTENT */}
+        {visualMode === "clustering" && (
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
+            {/* Left: 2D PCA Scatter Chart */}
+            <div className="lg:col-span-7 rounded border border-slate-200 bg-slate-50/50 p-3 flex flex-col justify-between">
+              <div className="flex items-center justify-between pb-2 border-b border-slate-200 text-xs">
+                <div className="flex items-center gap-2">
+                  <span className="font-bold text-slate-800">2D PCA Clinical Landscape</span>
+                  <span className="text-[10px] text-slate-500 font-mono">
+                    {displayedPoints.length} events projected
+                  </span>
+                </div>
+                {activeClusterId !== null && (
+                  <button
+                    onClick={() => setActiveClusterId(null)}
+                    className="text-[10px] text-blue-700 hover:underline font-semibold"
+                  >
+                    Reset Filter (Show All Clusters)
+                  </button>
+                )}
+              </div>
+
+              {clusteringLoading ? (
+                <div className="h-72 flex items-center justify-center">
+                  <LoadingState message="Fitting scikit-learn KMeans & PCA projection..." />
+                </div>
+              ) : clusteringError ? (
+                <div className="h-72 flex items-center justify-center">
+                  <ErrorState title="Clustering Failed" message={clusteringError} />
+                </div>
+              ) : (
+                <div className="h-72 w-full pt-2">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <ScatterChart margin={{ top: 10, right: 20, bottom: 20, left: 10 }}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                      <XAxis
+                        type="number"
+                        dataKey="pca_x"
+                        name="PC1"
+                        stroke="#64748b"
+                        tick={{ fontSize: 10, fill: "#64748b" }}
+                        label={{
+                          value: "Principal Component 1 (Severity & Disproportionality Axis) →",
+                          position: "insideBottom",
+                          offset: -12,
+                          fontSize: 10,
+                          fill: "#475569",
+                        }}
+                      />
+                      <YAxis
+                        type="number"
+                        dataKey="pca_y"
+                        name="PC2"
+                        stroke="#64748b"
+                        tick={{ fontSize: 10, fill: "#64748b" }}
+                        label={{
+                          value: "Principal Component 2 (Demographics & Case Volume) →",
+                          angle: -90,
+                          position: "insideLeft",
+                          fontSize: 10,
+                          fill: "#475569",
+                        }}
+                      />
+                      <ZAxis range={[60, 240]} />
+                      <Tooltip
+                        cursor={{ strokeDasharray: "3 3" }}
+                        content={({ active, payload }) => {
+                          if (active && payload && payload.length) {
+                            const data = payload[0].payload;
+                            const clusterObj = (clusteringData?.clusters || []).find(
+                              (c) => c.cluster_id === data.cluster_id
+                            );
+                            return (
+                              <div className="p-3 bg-white border border-slate-300 rounded-md shadow-lg text-xs space-y-1.5 max-w-xs">
+                                <div className="font-bold text-slate-900 border-b border-slate-100 pb-1">
+                                  {data.drug_name} — {data.event_term}
+                                </div>
+                                <div className="text-[11px] font-semibold text-blue-700">
+                                  {clusterObj?.cluster_name || `Cluster ${data.cluster_id}`}
+                                </div>
+                                <div className="grid grid-cols-2 gap-x-2 gap-y-0.5 text-[11px] text-slate-600 font-mono">
+                                  <div>PRR: <span className="font-bold text-rose-600">{data.prr}x</span></div>
+                                  <div>Cases: <span className="font-bold text-slate-900">{data.cases.toLocaleString()}</span></div>
+                                  <div>Mortality: <span className="font-bold text-slate-800">{data.death_rate}%</span></div>
+                                  <div>Hosp. Rate: <span className="font-bold text-slate-800">{data.hospitalization_rate}%</span></div>
+                                  <div>Mean Age: <span className="font-bold text-slate-800">{data.mean_age}y</span></div>
+                                  <div>Status: <span className="font-bold">{data.signal_status}</span></div>
+                                </div>
+                              </div>
+                            );
+                          }
+                          return null;
+                        }}
+                      />
+                      <Scatter name="Clustered Events" data={displayedPoints}>
+                        {displayedPoints.map((entry, index) => {
+                          const color = clusterColors[(entry.cluster_id - 1) % clusterColors.length];
+                          return (
+                            <Cell
+                              key={`cluster-point-${index}`}
+                              fill={color}
+                              fillOpacity={activeClusterId === null || activeClusterId === entry.cluster_id ? 0.85 : 0.2}
+                              stroke={color}
+                              strokeWidth={1}
+                            />
+                          );
+                        })}
+                      </Scatter>
+                    </ScatterChart>
+                  </ResponsiveContainer>
+                </div>
+              )}
+
+              {/* Cluster Legend Chips */}
+              <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-slate-200">
+                {(clusteringData?.clusters || []).map((c, idx) => {
+                  const color = clusterColors[idx % clusterColors.length];
+                  const isSelected = activeClusterId === c.cluster_id;
+                  return (
+                    <button
+                      key={c.cluster_id}
+                      onClick={() =>
+                        setActiveClusterId(isSelected ? null : c.cluster_id)
+                      }
+                      className={`px-2 py-1 rounded text-[10px] font-semibold flex items-center gap-1.5 transition border ${
+                        isSelected
+                          ? "bg-slate-900 text-white border-slate-900 shadow-xs"
+                          : "bg-white text-slate-700 border-slate-200 hover:bg-slate-100"
+                      }`}
+                    >
+                      <span
+                        className="w-2.5 h-2.5 rounded-full inline-block"
+                        style={{ backgroundColor: color }}
+                      />
+                      <span>Cluster {c.cluster_id}</span>
+                      <span className="opacity-70 font-mono">({c.event_count})</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Right: Cluster Archetype Profile Cards */}
+            <div className="lg:col-span-5 space-y-2.5 max-h-96 overflow-y-auto pr-1">
+              <div className="text-xs font-bold text-slate-700 uppercase tracking-wider flex items-center justify-between">
+                <span>Clinical Cluster Archetypes</span>
+                <span className="text-[10px] text-slate-400 font-normal">Click card to highlight</span>
+              </div>
+
+              {(clusteringData?.clusters || []).map((c, idx) => {
+                const color = clusterColors[idx % clusterColors.length];
+                const isSelected = activeClusterId === c.cluster_id;
+                return (
+                  <div
+                    key={c.cluster_id}
+                    onClick={() => setActiveClusterId(isSelected ? null : c.cluster_id)}
+                    className={`p-3 rounded border transition cursor-pointer space-y-1.5 ${
+                      isSelected
+                        ? "bg-blue-50/50 border-blue-500 shadow-xs ring-1 ring-blue-400"
+                        : "bg-white border-slate-200 hover:border-slate-300 hover:bg-slate-50/60"
+                    }`}
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <span
+                          className="w-2.5 h-2.5 rounded-full inline-block shrink-0"
+                          style={{ backgroundColor: color }}
+                        />
+                        <h4 className="text-xs font-bold text-slate-900">{c.cluster_name}</h4>
+                      </div>
+                      <span
+                        className={`text-[9px] font-bold px-1.5 py-0.5 rounded font-mono ${
+                          c.severity_level === "CRITICAL"
+                            ? "bg-rose-100 text-rose-800"
+                            : c.severity_level === "HIGH"
+                            ? "bg-amber-100 text-amber-800"
+                            : c.severity_level === "MODERATE"
+                            ? "bg-blue-100 text-blue-800"
+                            : "bg-slate-100 text-slate-700"
+                        }`}
+                      >
+                        {c.severity_level}
+                      </span>
+                    </div>
+
+                    <p className="text-[11px] text-slate-600 leading-snug">{c.description}</p>
+
+                    {/* Metrics snapshot */}
+                    <div className="grid grid-cols-4 gap-1 pt-1 text-center font-mono text-[10px]">
+                      <div className="bg-slate-50 p-1 rounded border border-slate-100">
+                        <div className="text-slate-400 uppercase text-[8px]">Events</div>
+                        <div className="font-bold text-slate-800">{c.event_count}</div>
+                      </div>
+                      <div className="bg-slate-50 p-1 rounded border border-slate-100">
+                        <div className="text-slate-400 uppercase text-[8px]">Avg PRR</div>
+                        <div className="font-bold text-rose-600">{c.avg_prr}x</div>
+                      </div>
+                      <div className="bg-slate-50 p-1 rounded border border-slate-100">
+                        <div className="text-slate-400 uppercase text-[8px]">Mortality</div>
+                        <div className="font-bold text-slate-800">{c.avg_death_rate}%</div>
+                      </div>
+                      <div className="bg-slate-50 p-1 rounded border border-slate-100">
+                        <div className="text-slate-400 uppercase text-[8px]">Hosp. %</div>
+                        <div className="font-bold text-slate-800">{c.avg_hospitalization_rate}%</div>
+                      </div>
+                    </div>
+
+                    {/* Top Events tags */}
+                    <div className="flex flex-wrap gap-1 pt-1">
+                      {c.top_events.slice(0, 4).map((evt, eIdx) => (
+                        <span
+                          key={eIdx}
+                          className="text-[9px] px-1.5 py-0.5 rounded bg-slate-100 text-slate-600 font-medium"
+                        >
+                          {evt}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* BUBBLE CHART VIEW CONTENT */}
+        {visualMode === "bubble" && (
+          <div className="h-80 w-full pt-2">
+            <ResponsiveContainer width="100%" height="100%">
+              <ScatterChart margin={{ top: 15, right: 30, bottom: 20, left: 10 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
+                <XAxis
+                  type="number"
+                  dataKey="prr"
+                  name="PRR"
+                  unit="x"
+                  stroke="#64748b"
+                  tick={{ fontSize: 11, fill: "#64748b" }}
+                  label={{
+                    value: "Proportional Reporting Ratio (PRR) →",
+                    position: "insideBottom",
+                    offset: -12,
+                    fontSize: 11,
+                    fill: "#475569",
+                  }}
+                />
+                <YAxis
+                  type="number"
+                  dataKey="cases"
+                  name="Cases"
+                  stroke="#64748b"
+                  tick={{ fontSize: 11, fill: "#64748b" }}
+                  label={{
+                    value: "Case Count (a)",
+                    angle: -90,
+                    position: "insideLeft",
+                    fontSize: 11,
+                    fill: "#475569",
+                  }}
+                />
+                <ZAxis range={[60, 280]} />
+                <Tooltip
+                  cursor={{ strokeDasharray: "3 3" }}
+                  content={({ active, payload }) => {
+                    if (active && payload && payload.length) {
+                      const data = payload[0].payload;
+                      return (
+                        <div className="p-3 bg-white border border-slate-300 rounded shadow-md text-xs space-y-1">
+                          <div className="font-bold text-slate-900 border-b border-slate-100 pb-1">
+                            {data.drug} — {data.event}
+                          </div>
+                          <div className="text-rose-600 font-mono font-bold">
+                            PRR: {data.prr}x
+                          </div>
+                          <div className="text-slate-600 font-mono">
+                            Case Count ($a$): {data.cases} reports
+                          </div>
+                          <div className="text-blue-700 font-mono">
+                            Chi-Square ($\chi^2$): {data.chi2}
+                          </div>
+                          <div className="pt-1">
+                            <StatusBadge label={data.status} size="sm" />
+                          </div>
+                        </div>
+                      );
+                    }
+                    return null;
+                  }}
+                />
+                <ReferenceLine
+                  x={2.0}
+                  stroke="#ef4444"
+                  strokeDasharray="4 4"
+                  label={{
+                    value: "Critical Threshold (PRR = 2.0)",
+                    fill: "#dc2626",
+                    fontSize: 11,
+                    position: "top",
+                  }}
+                />
+                <Scatter name="Safety Signals" data={bubbleData}>
+                  {bubbleData.map((entry, index) => {
+                    const fillColor =
+                      entry.status === "SIGNAL"
+                        ? "#dc2626"
+                        : entry.status === "WEAK_SIGNAL"
+                        ? "#f59e0b"
+                        : "#94a3b8";
+                    return <Cell key={`cell-${index}`} fill={fillColor} fillOpacity={0.8} />;
+                  })}
+                </Scatter>
+              </ScatterChart>
+            </ResponsiveContainer>
+          </div>
+        )}
+      </div>
 
       {/* 2x2 Interactive Calculator & Disproportionality Analyzer */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
@@ -1049,11 +1518,13 @@ function SignalDetectionView({
             <LoadingState message="Loading signal analytics engine..." />
           )}
 
-          {/* Adverse Event Clusters Notice */}
-          <div className="p-2.5 rounded border border-slate-200 bg-slate-50 flex items-center justify-between text-xs text-slate-500">
-            <span className="font-semibold">Adverse Event Clusters</span>
-            <span className="text-[10px] font-semibold text-slate-600 bg-slate-200 px-2 py-0.5 rounded">
-              Clustering analysis is not currently available
+          {/* Active Clustering Status Indicator */}
+          <div className="p-2.5 rounded border border-emerald-200 bg-emerald-50/60 flex items-center justify-between text-xs text-emerald-900">
+            <span className="font-semibold flex items-center gap-1.5">
+              <span>✓</span> Adverse Event Clustering Active (scikit-learn KMeans)
+            </span>
+            <span className="text-[10px] font-bold text-emerald-800 bg-emerald-100 px-2 py-0.5 rounded font-mono">
+              {clusteringData ? `${clusteringData.clusters.length} Clusters Indexed` : "Operational"}
             </span>
           </div>
         </div>
