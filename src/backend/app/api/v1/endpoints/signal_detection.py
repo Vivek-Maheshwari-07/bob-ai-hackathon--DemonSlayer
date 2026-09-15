@@ -1,8 +1,14 @@
 """FastAPI Endpoints for Modules M1, M2, M3: Signal Detection (Real OpenFDA Pipeline)."""
 
+import os
 from typing import Any, Dict, List, Optional
 from fastapi import APIRouter, Body, HTTPException, Query, status
 from pydantic import BaseModel, Field
+
+try:
+    import httpx
+except ImportError:
+    httpx = None
 
 from app.m1_faers.faers_ingest import run_m1_pipeline
 from app.m2_prr.prr_engine import (
@@ -47,6 +53,65 @@ class CustomPRRRequest(BaseModel):
     min_cases: int = Field(default=DEFAULT_MIN_CASES, description="Minimum case count threshold")
 
 
+# Known real-pipeline drug names — Gemini enrichment is for ARBITRARY (non-preset) pairs only
+_KNOWN_PRESET_DRUGS = {"ROFECOXIB", "VIOXX", "CERIVASTATIN", "BAYCOL", "ROSIGLITAZONE", "AVANDIA"}
+
+
+def _gemini_interpret_arbitrary_pair(
+    drug_name: str,
+    event_term: str,
+    prr: float,
+    chi_square: float,
+    n_cases: int,
+    signal_status: str,
+) -> Optional[str]:
+    """Calls Gemini 2.5 Flash to provide a clinical interpretation for an arbitrary drug-event pair.
+
+    Only called when the drug is NOT one of the known preset drugs (Vioxx/Baycol/Avandia),
+    since those already have deterministic expert context. Falls back to None if the API key
+    is not set or the call fails — the caller will then use the deterministic explanation.
+    """
+    if httpx is None:
+        return None
+    gemini_key = os.getenv("GEMINI_API_KEY", "")
+    if not gemini_key.strip():
+        return None
+
+    prompt = (
+        f"You are IBM Bob, a pharmacovigilance expert assistant.\n"
+        f"A custom 2×2 contingency table analysis just returned these VERIFIED statistical results:\n"
+        f"- Drug: {drug_name}\n"
+        f"- Adverse Event: {event_term}\n"
+        f"- PRR (Proportional Reporting Ratio): {prr:.4f}\n"
+        f"- Pearson Chi-Square: {chi_square:.4f}\n"
+        f"- Case Count (a): {n_cases}\n"
+        f"- Evans Signal Classification: {signal_status}\n\n"
+        f"Provide a concise 2–3 sentence clinical interpretation of these specific numbers. "
+        f"State clearly whether the criteria for a confirmed signal are met (PRR ≥ 2.0, χ² ≥ 4.0, a ≥ 3). "
+        f"Do NOT invent regulatory history, causal claims, or clinical findings not derivable from these numbers alone."
+    )
+
+    try:
+        url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={gemini_key}"
+        payload = {
+            "contents": [{"parts": [{"text": prompt}]}],
+            "generationConfig": {"temperature": 0.1, "maxOutputTokens": 256},
+        }
+        with httpx.Client(timeout=12.0) as client:
+            resp = client.post(url, json=payload)
+            if resp.status_code == 200:
+                data = resp.json()
+                candidates = data.get("candidates", [])
+                if candidates:
+                    text = candidates[0].get("content", {}).get("parts", [])[0].get("text", "")
+                    if text:
+                        return text.strip()
+    except Exception:
+        pass
+
+    return None
+
+
 class CustomPRRResponse(BaseModel):
     drug_name: str
     event_term: str
@@ -59,6 +124,7 @@ class CustomPRRResponse(BaseModel):
     signal_status: str
     is_signal: bool
     explanation: str
+    bob_interpretation: Optional[str] = None
 
 
 def _get_prr_results() -> List[Dict[str, Any]]:
@@ -239,6 +305,22 @@ async def calculate_custom_prr(
                 f"Does not satisfy standard pharmacovigilance disproportionality thresholds."
             )
 
+        # For arbitrary (non-preset) drug-event pairs, try a live Gemini call to give a
+        # clinical interpretation grounded in the real computed numbers. The deterministic
+        # explanation above is always the guaranteed fallback.
+        drug_upper = payload.drug_name.strip().upper()
+        is_arbitrary = not any(k in drug_upper for k in _KNOWN_PRESET_DRUGS)
+        bob_interp: Optional[str] = None
+        if is_arbitrary:
+            bob_interp = _gemini_interpret_arbitrary_pair(
+                drug_name=payload.drug_name,
+                event_term=payload.event_term,
+                prr=stats_res["prr"],
+                chi_square=stats_res["chi_square"],
+                n_cases=int(a),
+                signal_status=status_val,
+            )
+
         return CustomPRRResponse(
             drug_name=payload.drug_name.upper(),
             event_term=payload.event_term.upper(),
@@ -256,6 +338,7 @@ async def calculate_custom_prr(
             signal_status=status_val,
             is_signal=is_sig,
             explanation=explanation,
+            bob_interpretation=bob_interp,
         )
     except HTTPException:
         raise

@@ -103,6 +103,7 @@ interface CustomPRRResult {
   signal_status: string;
   is_signal: boolean;
   explanation: string;
+  bob_interpretation?: string | null;
 }
 
 interface ModuleCompleteness {
@@ -296,6 +297,28 @@ function DashboardView({
   onRefreshSignals: () => void;
   loadingSignals: boolean;
 }) {
+  // Load real readiness score from the Vioxx NDA preset via backend
+  const [readinessScore, setReadinessScore] = useState<string>("—");
+  const [criticalGapsCount, setCriticalGapsCount] = useState<string>("—");
+
+  useEffect(() => {
+    if (!backendOnline) return;
+    fetchM4Presets()
+      .then((res) => {
+        const p = (res?.presets || []).find((x: any) => x.id === "vioxx_nda_21042") || (res?.presets || [])[0];
+        if (!p) return;
+        return checkCTDDossier(p.outline);
+      })
+      .then((report: any) => {
+        if (!report) return;
+        setReadinessScore(`${Number(report.overall_completeness).toFixed(1)}%`);
+        setCriticalGapsCount(String(report.critical_gaps_count ?? "—"));
+      })
+      .catch(() => {
+        // silently fall back to "—" — dashboard is a preview, not the primary source
+      });
+  }, [backendOnline]);
+
   const totalPairs =
     summaryData?.total_drug_event_pairs ??
     summaryData?.dataset_summary?.total_drug_event_pairs ??
@@ -382,7 +405,7 @@ function DashboardView({
         />
         <MetricCard
           label="CTD Submission Readiness"
-          value="77.8%"
+          value={readinessScore}
           subtext="Vioxx NDA 21-042 benchmark dossier"
           badge="ICH M4 CTD"
           color="#2563eb"
@@ -390,8 +413,8 @@ function DashboardView({
         />
         <MetricCard
           label="Critical Regulatory Gaps"
-          value="2"
-          subtext="Sections 2.4 & 5.3.5 require action"
+          value={criticalGapsCount}
+          subtext="Missing mandatory ICH M4 sections"
           badge="High Priority"
           color="#9333ea"
           icon="⚠"
@@ -641,12 +664,13 @@ function SignalDetectionView({
   const [statusFilter, setStatusFilter] = useState("ALL");
 
   // Custom 2x2 Interactive Calculator State
+  // Default preset: real VIOXX MI values from VIOXX_signals.csv
   const [calcDrug, setCalcDrug] = useState("ROFECOXIB (VIOXX)");
   const [calcEvent, setCalcEvent] = useState("MYOCARDIAL INFARCTION");
-  const [a, setA] = useState(250);
-  const [b, setB] = useState(15000);
-  const [c, setC] = useState(400);
-  const [d, setD] = useState(1200000);
+  const [a, setA] = useState(17938);
+  const [b, setB] = useState(26341);
+  const [c, setC] = useState(155582);
+  const [d, setD] = useState(20492829);
 
   const [customResult, setCustomResult] = useState<CustomPRRResult | null>(null);
   const [calcLoading, setCalcLoading] = useState(false);
@@ -682,52 +706,55 @@ function SignalDetectionView({
     }
   }, [backendOnline, runCustomCalculation]);
 
-  // Preset Selector
+  // Preset Selector — real a/b/c/d values read from m2_signals CSVs
+  // VIOXX MI:    a=17938, b=26341, c=155582, d=20492829  (VIOXX_signals.csv, MYOCARDIAL INFARCTION row)
+  // BAYCOL RHABDO: a=8, b=192, c=41069, d=20651421       (BAYCOL_signals.csv, RHABDOMYOLYSIS row)
+  // AVANDIA CHF: a=26009, b=70272, c=54020, d=20542389   (AVANDIA_signals.csv, CARDIAC FAILURE CONGESTIVE row)
   const loadPreset = (presetName: string) => {
     if (presetName === "vioxx") {
       setCalcDrug("ROFECOXIB (VIOXX)");
       setCalcEvent("MYOCARDIAL INFARCTION");
-      setA(250);
-      setB(15000);
-      setC(400);
-      setD(1200000);
+      setA(17938);
+      setB(26341);
+      setC(155582);
+      setD(20492829);
       runCustomCalculation({
         drug_name: "ROFECOXIB (VIOXX)",
         event_term: "MYOCARDIAL INFARCTION",
-        a: 250,
-        b: 15000,
-        c: 400,
-        d: 1200000,
+        a: 17938,
+        b: 26341,
+        c: 155582,
+        d: 20492829,
       });
     } else if (presetName === "baycol") {
       setCalcDrug("CERIVASTATIN (BAYCOL)");
       setCalcEvent("RHABDOMYOLYSIS");
-      setA(180);
-      setB(4200);
-      setC(120);
-      setD(980000);
+      setA(8);
+      setB(192);
+      setC(41069);
+      setD(20651421);
       runCustomCalculation({
         drug_name: "CERIVASTATIN (BAYCOL)",
         event_term: "RHABDOMYOLYSIS",
-        a: 180,
-        b: 4200,
-        c: 120,
-        d: 980000,
+        a: 8,
+        b: 192,
+        c: 41069,
+        d: 20651421,
       });
     } else if (presetName === "avandia") {
       setCalcDrug("ROSIGLITAZONE (AVANDIA)");
-      setCalcEvent("CARDIAC FAILURE");
-      setA(310);
-      setB(28000);
-      setC(850);
-      setD(1500000);
+      setCalcEvent("CARDIAC FAILURE CONGESTIVE");
+      setA(26009);
+      setB(70272);
+      setC(54020);
+      setD(20542389);
       runCustomCalculation({
         drug_name: "ROSIGLITAZONE (AVANDIA)",
-        event_term: "CARDIAC FAILURE",
-        a: 310,
-        b: 28000,
-        c: 850,
-        d: 1500000,
+        event_term: "CARDIAC FAILURE CONGESTIVE",
+        a: 26009,
+        b: 70272,
+        c: 54020,
+        d: 20542389,
       });
     } else if (presetName === "noise") {
       setCalcDrug("IBUPROFEN");
@@ -789,32 +816,39 @@ function SignalDetectionView({
           </div>
 
           {/* Benchmark Preset Buttons */}
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="text-xs font-bold text-slate-600">Benchmark Presets:</span>
-            <button
-              onClick={() => loadPreset("vioxx")}
-              className="px-2.5 py-1 rounded text-[11px] font-semibold bg-rose-50 text-rose-700 border border-rose-200 hover:bg-rose-100 transition shadow-2xs"
-            >
-              Vioxx / MI
-            </button>
-            <button
-              onClick={() => loadPreset("baycol")}
-              className="px-2.5 py-1 rounded text-[11px] font-semibold bg-orange-50 text-orange-700 border border-orange-200 hover:bg-orange-100 transition shadow-2xs"
-            >
-              Baycol / Rhabdo
-            </button>
-            <button
-              onClick={() => loadPreset("avandia")}
-              className="px-2.5 py-1 rounded text-[11px] font-semibold bg-amber-50 text-amber-700 border border-amber-200 hover:bg-amber-100 transition shadow-2xs"
-            >
-              Avandia / Heart Failure
-            </button>
-            <button
-              onClick={() => loadPreset("noise")}
-              className="px-2.5 py-1 rounded text-[11px] font-semibold bg-slate-100 text-slate-700 border border-slate-300 hover:bg-slate-200 transition shadow-2xs"
-            >
-              Ibuprofen / Non-Signal
-            </button>
+          <div className="space-y-1.5">
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="text-xs font-bold text-slate-600">Benchmark Presets:</span>
+              <button
+                onClick={() => loadPreset("vioxx")}
+                className="px-2.5 py-1 rounded text-[11px] font-semibold bg-rose-50 text-rose-700 border border-rose-200 hover:bg-rose-100 transition shadow-2xs"
+              >
+                Vioxx / MI
+              </button>
+              <button
+                onClick={() => loadPreset("baycol")}
+                className="px-2.5 py-1 rounded text-[11px] font-semibold bg-orange-50 text-orange-700 border border-orange-200 hover:bg-orange-100 transition shadow-2xs"
+              >
+                Baycol / Rhabdo
+              </button>
+              <button
+                onClick={() => loadPreset("avandia")}
+                className="px-2.5 py-1 rounded text-[11px] font-semibold bg-amber-50 text-amber-700 border border-amber-200 hover:bg-amber-100 transition shadow-2xs"
+              >
+                Avandia / Heart Failure
+              </button>
+              <button
+                onClick={() => loadPreset("noise")}
+                className="px-2.5 py-1 rounded text-[11px] font-semibold bg-slate-100 text-slate-700 border border-slate-300 hover:bg-slate-200 transition shadow-2xs"
+                title="Illustrative negative-control example — not a real computed FAERS signal"
+              >
+                Ibuprofen / Non-Signal ⓘ
+              </button>
+            </div>
+            <p className="text-[10px] text-slate-400 font-medium">
+              Vioxx, Baycol, Avandia presets use exact openFDA FAERS cell values (a, b, c, d) from the real pipeline.
+              The Ibuprofen preset is an <em>illustrative negative-control example only</em> and does not represent a real computed FAERS signal.
+            </p>
           </div>
 
           {/* Form Inputs */}
@@ -991,6 +1025,16 @@ function SignalDetectionView({
                 <p className="text-xs text-slate-700 leading-relaxed font-medium">
                   {customResult.explanation}
                 </p>
+                {customResult.bob_interpretation && (
+                  <div className="rounded border border-indigo-200 bg-indigo-50/50 p-2.5 space-y-1 mt-1">
+                    <div className="flex items-center gap-1.5 text-[10px] font-bold text-indigo-800 uppercase tracking-wider">
+                      <span>🤖</span> IBM Bob Clinical Interpretation (Gemini 2.5 Flash)
+                    </div>
+                    <p className="text-xs text-indigo-900 leading-relaxed font-medium">
+                      {customResult.bob_interpretation}
+                    </p>
+                  </div>
+                )}
                 <div className="pt-1.5 flex flex-wrap gap-2 text-[11px] text-slate-600 font-mono">
                   <span className="bg-white px-2 py-0.5 rounded border border-slate-200">
                     p-value: {customResult.metrics.p_value < 0.0001 ? "< 0.0001" : customResult.metrics.p_value.toFixed(4)}
@@ -1235,11 +1279,11 @@ function HistoricalAnalysisView({
             <MetricCard
               label="Early Detection Lead Time"
               value={
-                backtestData.lead_time_days
+                backtestData.lead_time_days && backtestData.lead_time_days !== "N/A"
                   ? `+${backtestData.lead_time_days} days`
                   : typeof backtestData.detection_lead_time_quarters === "number"
-                  ? `+${backtestData.detection_lead_time_quarters} Qtrs`
-                  : "Pre-2004"
+                  ? `+${backtestData.detection_lead_time_quarters} days`
+                  : "Pre-2004 (Data Unavailable)"
               }
               subtext="Earlier than FDA market withdrawal"
               badge="Safety Lead Time"
@@ -1910,7 +1954,7 @@ function AboutView() {
         <div>
           <h3 className="text-sm font-bold text-slate-900">Platform Technology Stack</h3>
           <p className="mt-1 text-slate-600">
-            <strong>Backend:</strong> Python 3.13, FastAPI, NumPy, SciPy, Pytest (114 automated tests).<br />
+            <strong>Backend:</strong> Python 3.13, FastAPI, NumPy, SciPy, Pytest (118 automated tests).<br />
             <strong>Frontend:</strong> Next.js 14 App Router, TypeScript, Tailwind CSS, Recharts.<br />
             <strong>AI & Orchestration:</strong> IBM Bob AI Assistant, Concurrently 1-Command Startup.
           </p>

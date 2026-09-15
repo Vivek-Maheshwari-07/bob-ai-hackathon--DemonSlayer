@@ -153,11 +153,11 @@ npm test
 ```
 *(Equivalent to `python -m pytest src/backend`)*
 
-**Test Suite Coverage (114 Tests):**
+**Test Suite Coverage (118 Tests):**
 - `test_health.py`: Subsystem heartbeat & API status (2 tests)
 - `test_m1_faers.py`: FAERS data ingestion, cleaning & normalization (9 tests)
 - `test_m2_prr.py`: Evans PRR calculation, $\chi^2$, 95% CI & classification (13 tests)
-- `test_copilot_and_custom_calc.py`: Custom 2×2 calculation & IBM Bob Copilot (9 tests)
+- `test_copilot_and_custom_calc.py`: Custom 2×2 calculation & IBM Bob Copilot (13 tests)
 - `test_m3_trajectory.py`: Vioxx (+242d), Avandia (+1205d), and Baycol backtests (7 tests)
 - `test_m4_*.py`: ICH M4 CTD RAG retriever, completeness scoring & gap matrices (74 tests)
 

@@ -110,7 +110,7 @@ The repository includes visual captures of the verified historical trajectories 
 | **Statistical Engine** | NumPy, SciPy, Pandas | Vectorized Evans PRR, Pearson Chi-Square, and contingency table math |
 | **RAG & Knowledge Base** | In-Memory Retrieval Index | Authoritative ICH M4 guideline retrieval and section verification |
 | **AI Copilot** | IBM Bob / Google Gemini 2.5 Flash / watsonx.ai | Grounded clinical explanation and regulatory remediation planning |
-| **DevOps & Process Runner** | Concurrently, Node.js, Pytest | Cross-platform 1-command startup and 114 automated tests |
+| **DevOps & Process Runner** | Concurrently, Node.js, Pytest | Cross-platform 1-command startup and 118 automated tests |
 
 ---
 
@@ -182,7 +182,7 @@ npm run dev
 ```bash
 cd src/backend
 pip install -r requirements.txt
-python -m pytest                    # Runs 114 automated tests
+python -m pytest                    # Runs 118 automated tests
 uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
 ```
 
@@ -255,8 +255,8 @@ Copy `src/.env.example` to `src/.env` if you wish to configure external credenti
 1. Navigate to **Submission Readiness** via the sidebar.
 2. Select the `Vioxx NDA 21-042` preset (or upload a custom dossier outline / PDF).
 3. Click **Generate Gap Report**.
-4. Observe the **Overall Readiness Score** (77.8%) and horizontal **CTD Module Progress** meters (Modules 1–5).
-5. Inspect the **Priority Regulatory Gap Matrix** filtered by `CRITICAL` to review specific missing sections (e.g. Module 2.4 Nonclinical Overview) and ICH M4 evidence citations.
+4. Observe the **Overall Readiness Score** and horizontal **CTD Module Progress** meters (Modules 1–5).
+5. Inspect the **Priority Regulatory Gap Matrix** filtered by `CRITICAL` to review specific missing sections and ICH M4 evidence citations.
 6. Click **IBM Bob Copilot** in the top header and ask: *"What are the critical gaps in Module 2?"* to receive grounded remediation guidance.
 
 ---
@@ -306,7 +306,7 @@ IBM Bob is deeply integrated as a specialized, context-aware conversational copi
 
 ## Known Issues
 
-- **None**: No blocking bugs or build issues at the time of submission. All 114 automated tests pass and the frontend compiles cleanly.
+- **None**: No blocking bugs or build issues at the time of submission. All 118 automated tests pass and the frontend compiles cleanly.
 
 ---
 

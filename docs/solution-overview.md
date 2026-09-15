@@ -66,7 +66,7 @@ $$\text{Lower / Upper CI} = \exp\left( \ln(\text{PRR}) \pm 1.96 \sqrt{\frac{1}{a
 ## 4. Digital-Twin Historical Backtesting (M3)
 
 PharmSignals implements longitudinal monthly walk-forward backtesting using historical openFDA FAERS data artifacts:
-- **Vioxx (Rofecoxib)**: Evaluates the myocardial infarction signal across monthly slices starting in 2004, identifying initial signal emergence on **January 31, 2004** ($\text{PRR} = 2.03, \chi^2 = 7.15, a = 12$). This represents **242 days (~8 months)** of early detection lead time before the FDA market withdrawal on September 30, 2004.
+- **Vioxx (Rofecoxib)**: Evaluates the myocardial infarction signal across monthly slices starting in 2004, identifying initial signal emergence on **January 31, 2004** ($\text{PRR} = 12.97, \chi^2 = 345.40, a = 31$). This represents **242 days (~8 months)** of early detection lead time before the FDA market withdrawal on September 30, 2004.
 - **Avandia (Rosiglitazone)**: Reconstructs the congestive heart failure signal, demonstrating **1,205 days** of early detection lead time prior to the FDA Boxed Warning.
 - **Baycol (Cerivastatin)**: Transparently identifies openFDA electronic reporting boundaries (`DATA_UNAVAILABLE_PRE_WITHDRAWAL`), ensuring zero data hallucination for legacy pre-2004 events.
 
