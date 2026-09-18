@@ -57,3 +57,5 @@ build/
 *.sqlite
 *.sqlite3
 *.db
+*.tsbuildinfo
+.claude/

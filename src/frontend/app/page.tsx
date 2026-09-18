@@ -23,11 +23,14 @@ import {
   fetchAllSignals,
   fetchDrugBacktest,
   calculateCustomPRR,
+  liveOpenFDALookup,
+  LiveLookupResult,
   fetchAdverseEventClusters,
   fetchM4Presets,
   checkCTDDossier,
   checkCTDText,
   checkCTDPDF,
+  exportGapReportPDF,
   checkHealth,
   CustomPRRPayload,
 } from "../lib/api";
@@ -143,10 +146,19 @@ interface GapReport {
     action_item: string | null;
     source_reference: string;
     match_evidence: { confidence_score: number; evidence_reasoning: string };
+    requires_safety_update?: boolean;
+    safety_update_reason?: string | null;
   }>;
   recommended_actions: string[];
   limitations: string[];
   timestamp: string;
+  safety_signal_linkage?: {
+    drug_name: string;
+    has_confirmed_signal: boolean;
+    flagged_section_ids: string[];
+    confirmed_events: Array<{ event_term: string; prr: number; n_drug_event: number }>;
+    message: string | null;
+  } | null;
 }
 
 // ─── Main Application Component ────────────────────────────────────────────
@@ -312,7 +324,7 @@ function DashboardView({
     if (!backendOnline) return;
     fetchM4Presets()
       .then((res) => {
-        const p = (res?.presets || []).find((x: any) => x.id === "vioxx_nda_21042") || (res?.presets || [])[0];
+        const p = (res?.presets || []).find((x: any) => x.id === "VIOXX_NDA_21042") || (res?.presets || [])[0];
         if (!p) return;
         return checkCTDDossier(p.outline);
       })
@@ -729,6 +741,35 @@ function SignalDetectionView({
     []
   );
 
+  // LIVE openFDA Lookup — queries the real openFDA API for any arbitrary drug,
+  // not limited to the 3 pre-loaded VIOXX/BAYCOL/AVANDIA benchmarks.
+  const [liveDrugName, setLiveDrugName] = useState("");
+  const [liveEventTerm, setLiveEventTerm] = useState("");
+  const [liveResult, setLiveResult] = useState<LiveLookupResult | null>(null);
+  const [liveLoading, setLiveLoading] = useState(false);
+  const [liveError, setLiveError] = useState<string | null>(null);
+
+  const runLiveLookup = async () => {
+    if (!liveDrugName.trim()) {
+      setLiveError("Enter a drug name to query openFDA live.");
+      return;
+    }
+    setLiveLoading(true);
+    setLiveError(null);
+    setLiveResult(null);
+    try {
+      const res = await liveOpenFDALookup(liveDrugName.trim(), liveEventTerm.trim());
+      setLiveResult(res);
+      if (!res.success) {
+        setLiveError(res.error || "No signal could be computed for this query.");
+      }
+    } catch (e: any) {
+      setLiveError(e?.message || "Live openFDA lookup failed.");
+    } finally {
+      setLiveLoading(false);
+    }
+  };
+
   // Run initial calculation on mount
   useEffect(() => {
     if (backendOnline) {
@@ -958,11 +999,24 @@ function SignalDetectionView({
             {/* Left: 2D PCA Scatter Chart */}
             <div className="lg:col-span-7 rounded border border-slate-200 bg-slate-50/50 p-3 flex flex-col justify-between">
               <div className="flex items-center justify-between pb-2 border-b border-slate-200 text-xs">
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 flex-wrap">
                   <span className="font-bold text-slate-800">2D PCA Clinical Landscape</span>
                   <span className="text-[10px] text-slate-500 font-mono">
                     {displayedPoints.length} events projected
                   </span>
+                  {typeof clusteringData?.metadata?.silhouette_score === "number" && (
+                    <span className="text-[10px] text-slate-500 font-mono">
+                      · silhouette {clusteringData.metadata.silhouette_score.toFixed(2)}
+                    </span>
+                  )}
+                  {!!clusteringData?.metadata?.imputed_pairs_count && (
+                    <span
+                      className="text-[10px] text-amber-700 font-mono"
+                      title="Pairs with no matching patient-level FAERS rows use fixed default severity/demographic values (dashed markers on the chart)"
+                    >
+                      · {clusteringData.metadata.imputed_pairs_count} imputed ({clusteringData.metadata.imputed_pairs_pct}%)
+                    </span>
+                  )}
                 </div>
                 {activeClusterId !== null && (
                   <button
@@ -1040,6 +1094,11 @@ function SignalDetectionView({
                                   <div>Mean Age: <span className="font-bold text-slate-800">{data.mean_age}y</span></div>
                                   <div>Status: <span className="font-bold">{data.signal_status}</span></div>
                                 </div>
+                                {data.is_imputed && (
+                                  <div className="text-[10px] text-amber-700 font-semibold border-t border-amber-100 pt-1">
+                                    ⚠ Imputed severity/demographics (no matching patient-level rows)
+                                  </div>
+                                )}
                               </div>
                             );
                           }
@@ -1053,9 +1112,13 @@ function SignalDetectionView({
                             <Cell
                               key={`cluster-point-${index}`}
                               fill={color}
-                              fillOpacity={activeClusterId === null || activeClusterId === entry.cluster_id ? 0.85 : 0.2}
-                              stroke={color}
-                              strokeWidth={1}
+                              fillOpacity={
+                                (activeClusterId === null || activeClusterId === entry.cluster_id ? 0.85 : 0.2) *
+                                (entry.is_imputed ? 0.55 : 1)
+                              }
+                              stroke={entry.is_imputed ? "#b45309" : color}
+                              strokeWidth={entry.is_imputed ? 1.5 : 1}
+                              strokeDasharray={entry.is_imputed ? "2,2" : undefined}
                             />
                           );
                         })}
@@ -1265,6 +1328,97 @@ function SignalDetectionView({
                 </Scatter>
               </ScatterChart>
             </ResponsiveContainer>
+          </div>
+        )}
+      </div>
+
+      {/* LIVE openFDA API Lookup — arbitrary drug, not limited to the 3 pre-loaded benchmarks */}
+      <div className="rounded border border-emerald-300 bg-emerald-50/40 p-4 shadow-2xs space-y-3">
+        <div className="flex items-center justify-between pb-2.5 border-b border-emerald-200">
+          <div>
+            <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2">
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-600 text-white text-[10px] font-bold uppercase tracking-wider">
+                <span className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" />
+                Live
+              </span>
+              openFDA Real-Time Lookup
+            </h3>
+            <p className="text-xs text-slate-600 font-medium">
+              Query the real openFDA API live for any drug — not limited to the pre-loaded VIOXX / BAYCOL / AVANDIA benchmarks.
+            </p>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-[1fr_1fr_auto] gap-2.5 items-end">
+          <div>
+            <label className="text-[11px] font-bold text-slate-700 block mb-1">Drug Name</label>
+            <input
+              type="text"
+              value={liveDrugName}
+              onChange={(e) => setLiveDrugName(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && runLiveLookup()}
+              placeholder="e.g. IBUPROFEN, METFORMIN, WARFARIN"
+              className="w-full px-3 py-1.5 rounded bg-white border border-slate-300 text-slate-900 text-xs font-semibold focus:border-emerald-500 outline-none"
+            />
+          </div>
+          <div>
+            <label className="text-[11px] font-bold text-slate-700 block mb-1">
+              Adverse Event <span className="font-normal text-slate-400">(optional — auto-detects top event)</span>
+            </label>
+            <input
+              type="text"
+              value={liveEventTerm}
+              onChange={(e) => setLiveEventTerm(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && runLiveLookup()}
+              placeholder="e.g. NAUSEA"
+              className="w-full px-3 py-1.5 rounded bg-white border border-slate-300 text-slate-900 text-xs font-semibold focus:border-emerald-500 outline-none"
+            />
+          </div>
+          <button
+            onClick={runLiveLookup}
+            disabled={liveLoading || !backendOnline}
+            className="px-4 py-1.5 rounded bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-xs transition disabled:opacity-50 whitespace-nowrap"
+          >
+            {liveLoading ? "Querying openFDA..." : "Run Live Lookup"}
+          </button>
+        </div>
+
+        {liveError && !liveLoading && (
+          <div className="rounded border border-amber-300 bg-amber-50 px-3 py-2 text-xs text-amber-800 font-medium">
+            ⚠ {liveError}
+          </div>
+        )}
+
+        {liveResult && liveResult.success && (
+          <div className="rounded border border-slate-200 bg-white p-3.5 space-y-2.5">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div className="text-xs font-bold text-slate-900">
+                {liveResult.drug_name} + {liveResult.event_term}
+                <span className="ml-2 text-[10px] font-mono text-slate-400 font-normal">
+                  queried {new Date(liveResult.queried_at).toLocaleTimeString()}
+                </span>
+              </div>
+              <StatusBadge label={liveResult.signal_status || "NOISE"} size="sm" />
+            </div>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-center">
+              <div className="p-2 rounded bg-slate-50 border border-slate-200">
+                <div className="text-[10px] text-slate-500 font-semibold uppercase">PRR</div>
+                <div className="text-sm font-mono font-bold text-slate-900">{liveResult.metrics?.prr.toFixed(2)}</div>
+              </div>
+              <div className="p-2 rounded bg-slate-50 border border-slate-200">
+                <div className="text-[10px] text-slate-500 font-semibold uppercase">Chi²</div>
+                <div className="text-sm font-mono font-bold text-slate-900">{liveResult.metrics?.chi_square.toFixed(1)}</div>
+              </div>
+              <div className="p-2 rounded bg-slate-50 border border-slate-200">
+                <div className="text-[10px] text-slate-500 font-semibold uppercase">Cases (a)</div>
+                <div className="text-sm font-mono font-bold text-slate-900">{liveResult.n_drug_event?.toLocaleString()}</div>
+              </div>
+              <div className="p-2 rounded bg-slate-50 border border-slate-200">
+                <div className="text-[10px] text-slate-500 font-semibold uppercase">Drug Reports</div>
+                <div className="text-sm font-mono font-bold text-slate-900">{liveResult.n_drug_total?.toLocaleString()}</div>
+              </div>
+            </div>
+            <p className="text-[11px] text-slate-600 font-medium">{liveResult.explanation}</p>
           </div>
         )}
       </div>
@@ -1876,7 +2030,7 @@ function SubmissionReadinessView({
   backendOnline: boolean | null;
 }) {
   const [presets, setPresets] = useState<any[]>([]);
-  const [selectedPresetId, setSelectedPresetId] = useState<string>("vioxx_nda");
+  const [selectedPresetId, setSelectedPresetId] = useState<string>("VIOXX_NDA_21042");
   const [customText, setCustomText] = useState("");
   const [pdfFile, setPdfFile] = useState<File | null>(null);
 
@@ -1924,10 +2078,31 @@ function SubmissionReadinessView({
     }
   };
 
+  const [exportingPdf, setExportingPdf] = useState(false);
+
+  const handleExportPDF = async () => {
+    if (!gapReport) return;
+    setExportingPdf(true);
+    try {
+      const blob = await exportGapReportPDF(gapReport);
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      const nameSource = gapReport.drug_name || gapReport.submission_title || "ctd_gap_report";
+      a.href = url;
+      a.download = `${nameSource.replace(/[^a-zA-Z0-9]+/g, "_")}_gap_report.pdf`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (e: any) {
+      setError(e?.message || "Failed to export PDF report");
+    } finally {
+      setExportingPdf(false);
+    }
+  };
+
   // Run default analysis on mount when presets arrive
   useEffect(() => {
     if (presets.length > 0 && !gapReport && !loading) {
-      const p = presets.find((x) => x.id === "vioxx_nda") || presets[0];
+      const p = presets.find((x) => x.id === "VIOXX_NDA_21042") || presets[0];
       checkCTDDossier(p.outline)
         .then(setGapReport)
         .catch(console.error);
@@ -1946,14 +2121,24 @@ function SubmissionReadinessView({
         subtitle="Evaluate CTD dossier completeness against ICH M4 requirements."
         badge="ICH M4 Ground Truth"
         actions={
-          <button
-            onClick={runAnalysis}
-            disabled={loading || !backendOnline}
-            className="px-4 py-1.5 rounded bg-blue-700 hover:bg-blue-800 text-white font-bold text-xs shadow-xs transition disabled:opacity-50 flex items-center gap-1.5"
-          >
-            <span>📋</span>
-            <span>{loading ? "Evaluating ICH M4..." : "Generate Gap Report"}</span>
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={runAnalysis}
+              disabled={loading || !backendOnline}
+              className="px-4 py-1.5 rounded bg-blue-700 hover:bg-blue-800 text-white font-bold text-xs shadow-xs transition disabled:opacity-50 flex items-center gap-1.5"
+            >
+              <span>📋</span>
+              <span>{loading ? "Evaluating ICH M4..." : "Generate Gap Report"}</span>
+            </button>
+            <button
+              onClick={handleExportPDF}
+              disabled={!gapReport || exportingPdf}
+              className="px-4 py-1.5 rounded bg-white border border-slate-300 hover:bg-slate-50 text-slate-800 font-bold text-xs shadow-xs transition disabled:opacity-50 flex items-center gap-1.5"
+            >
+              <span>📄</span>
+              <span>{exportingPdf ? "Exporting..." : "Export PDF"}</span>
+            </button>
+          </div>
         }
       />
 
@@ -2016,7 +2201,7 @@ function SubmissionReadinessView({
                 <div className="text-xs font-bold text-slate-900">{p.title}</div>
                 <div className="text-[11px] text-slate-600 font-medium mt-0.5">{p.description}</div>
                 <div className="text-[10px] text-blue-700 font-mono mt-1.5">
-                  {p.outline?.length || 0} sections structured
+                  {p.outline?.sections?.length || 0} sections structured
                 </div>
               </button>
             ))}
@@ -2105,6 +2290,40 @@ function SubmissionReadinessView({
               icon="🏛"
             />
           </div>
+
+          {/* Mode 1 <-> Mode 2 Safety Signal Cross-Link Banner */}
+          {gapReport.safety_signal_linkage?.has_confirmed_signal && (
+            <div className="rounded border border-rose-300 bg-rose-50 p-3.5 shadow-2xs flex items-start gap-3">
+              <span className="text-xl leading-none">⚠️</span>
+              <div className="flex-1 min-w-0">
+                <div className="text-xs font-bold text-rose-800 uppercase tracking-wide">
+                  Confirmed FAERS Safety Signal — Mandatory Review Required
+                </div>
+                <p className="mt-1 text-xs text-rose-700 font-medium">
+                  {gapReport.safety_signal_linkage.message ||
+                    `${gapReport.safety_signal_linkage.drug_name} has an active CONFIRMED_SIGNAL. Safety-related CTD sections require mandatory review.`}
+                </p>
+                <div className="mt-1.5 flex flex-wrap gap-1.5">
+                  {gapReport.safety_signal_linkage.flagged_section_ids.map((sid) => (
+                    <span
+                      key={sid}
+                      className="text-[10px] font-mono font-bold text-rose-800 bg-white border border-rose-300 rounded px-1.5 py-0.5"
+                    >
+                      Section {sid}
+                    </span>
+                  ))}
+                  {gapReport.safety_signal_linkage.confirmed_events.slice(0, 2).map((e) => (
+                    <span
+                      key={e.event_term}
+                      className="text-[10px] font-mono text-rose-700 bg-white border border-rose-200 rounded px-1.5 py-0.5"
+                    >
+                      {e.event_term} · PRR {e.prr.toFixed(1)}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Compact Horizontal CTD Module Progress Overview */}
           <div className="rounded border border-slate-200 bg-white p-4 shadow-2xs space-y-3">
@@ -2218,7 +2437,12 @@ function SubmissionReadinessView({
                   </thead>
                   <tbody className="divide-y divide-slate-100">
                     {filteredGaps.map((gap, idx) => (
-                      <tr key={idx} className="hover:bg-slate-50/80 transition">
+                      <tr
+                        key={idx}
+                        className={`hover:bg-slate-50/80 transition ${
+                          gap.requires_safety_update ? "bg-rose-50/70" : ""
+                        }`}
+                      >
                         <td className="py-2 px-3 text-slate-600 font-medium text-[11px]">
                           {gap.module_name}
                         </td>
@@ -2226,7 +2450,17 @@ function SubmissionReadinessView({
                           {gap.section_id}
                         </td>
                         <td className="py-2 px-3 text-slate-900 font-semibold max-w-[180px] truncate">
-                          {gap.title}
+                          <div className="flex items-center gap-1.5">
+                            {gap.title}
+                            {gap.requires_safety_update && (
+                              <span
+                                title={gap.safety_update_reason || "Requires mandatory safety review"}
+                                className="shrink-0 text-[9px] font-bold text-rose-700 bg-rose-100 border border-rose-300 rounded px-1.5 py-0.5 uppercase tracking-wide"
+                              >
+                                ⚠ Safety Update Required
+                              </span>
+                            )}
+                          </div>
                         </td>
                         <td className="py-2 px-3">
                           <StatusBadge label={gap.criticality} size="sm" />

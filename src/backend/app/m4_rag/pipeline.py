@@ -22,6 +22,7 @@ try:
     from app.m4_rag.pdf_extractor import CTDPDFExtractor
     from app.m4_rag.report_generator import ReportGenerator
     from app.m4_rag.retriever import ICHRetriever
+    from app.m4_rag.safety_signal_link import apply_safety_signal_flags
     from app.m4_rag.schema import (
         DossierOutlineInput,
         GapReportOutput,
@@ -35,6 +36,7 @@ except ImportError:
     from .pdf_extractor import CTDPDFExtractor
     from .report_generator import ReportGenerator
     from .retriever import ICHRetriever
+    from .safety_signal_link import apply_safety_signal_flags
     from .schema import (
         DossierOutlineInput,
         GapReportOutput,
@@ -80,6 +82,10 @@ class CTDRagCheckerPipeline:
         # Step 2: Evaluate against verified ICH M4 requirements
         gap_items = self.gap_checker.evaluate(normalized_outline)
 
+        # Step 2b: Cross-link Mode 1 (M2 PRR signal detection) — flag safety
+        # sections for mandatory review when this drug has a CONFIRMED_SIGNAL.
+        safety_signal_linkage = apply_safety_signal_flags(normalized_outline.drug_name, gap_items)
+
         # Step 3: Compute completeness scores
         overall_score, _ = self.scorer.calculate(gap_items)
 
@@ -101,6 +107,7 @@ class CTDRagCheckerPipeline:
             outline=normalized_outline,
             gap_items=gap_items,
             reasoning_insights=reasoning_insights,
+            safety_signal_linkage=safety_signal_linkage,
         )
 
         return report
