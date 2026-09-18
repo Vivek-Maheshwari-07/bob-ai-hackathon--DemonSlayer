@@ -11,3 +11,10 @@ services:
         value: production
       - key: GEMINI_API_KEY
         sync: false
+      # Set this to your deployed Vercel URL(s) once known, e.g.
+      # https://pharmsignals.vercel.app — comma-separate multiple origins.
+      - key: CORS_ORIGINS
+        sync: false
+      # Optional: allow Vercel preview-deploy URLs too (they change per push).
+      - key: CORS_ORIGIN_REGEX
+        sync: false
