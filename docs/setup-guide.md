@@ -104,11 +104,9 @@ cp src/.env.example src/.env
 | Variable | Required | Default | Purpose |
 |---|---|---|---|
 | `NEXT_PUBLIC_API_BASE_URL` | No | `http://localhost:8000/api/v1` | Backend API URL for frontend communication |
-| `GEMINI_API_KEY` | No | *Empty* | Optional Google Gemini key for live LLM reasoning |
-| `WATSONX_API_KEY` | No | *Empty* | Optional IBM watsonx.ai foundation model key |
-| `WATSONX_PROJECT_ID` | No | *Empty* | Optional IBM watsonx.ai project identifier |
+| `GEMINI_API_KEY` | No | *Empty* | Optional Google Gemini 2.5 Flash key powering the IBM Bob Copilot and M4 grounded reasoning |
 
-> **Note**: The platform features a **100% deterministic offline fallback engine** when external LLM keys are omitted, guaranteeing zero hallucinations and full functionality for offline hackathon judging.
+> **Note**: The platform features a **100% deterministic offline fallback engine** when `GEMINI_API_KEY` is omitted, guaranteeing zero hallucinations and full functionality for offline hackathon judging.
 
 ---
 

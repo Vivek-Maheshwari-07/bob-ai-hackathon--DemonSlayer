@@ -111,6 +111,37 @@ class ICHRetriever:
 
         return results
 
+    def batch_similarity(
+        self,
+        texts: List[str],
+        requirements: Optional[List[ICHSectionRequirement]] = None,
+    ) -> np.ndarray:
+        """Encodes a batch of arbitrary texts in one pass and returns their
+        cosine similarity against a set of ICH requirements (or the full
+        corpus if `requirements` is omitted).
+
+        Returns a (len(texts) x len(requirements)) matrix, letting callers
+        build a full section-to-requirement score matrix for a global
+        (rather than greedy) matching pass, without re-embedding the same
+        text once per requirement.
+        """
+        target_reqs = requirements if requirements is not None else self._requirements
+        if not texts or not target_reqs:
+            return np.zeros((len(texts), len(target_reqs)))
+
+        query_vecs = np.asarray(
+            self._model.encode(texts, normalize_embeddings=True, show_progress_bar=False)
+        )
+
+        if requirements is None:
+            sub_embeddings = self._embeddings
+        else:
+            id_to_row = {req.section_id: i for i, req in enumerate(self._requirements)}
+            rows = [id_to_row[r.section_id] for r in requirements]
+            sub_embeddings = self._embeddings[rows]
+
+        return query_vecs @ sub_embeddings.T
+
     def find_best_requirement_for_dossier_section(
         self,
         section_id: str,

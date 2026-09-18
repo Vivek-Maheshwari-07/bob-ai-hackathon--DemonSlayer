@@ -24,7 +24,6 @@ from app.m2_prr.prr_engine import (
     DEFAULT_CHI_SQUARE_THRESHOLD,
     DEFAULT_MIN_CASES,
 )
-from app.core.watsonx_client import generate_text as watsonx_generate_text, is_configured as watsonx_is_configured
 from app.core.config import settings
 from app.m3_digital_twin.trajectory import run_drug_backtest
 from app.m4_rag.knowledge.loader import get_knowledge_base
@@ -331,7 +330,7 @@ def _build_grounding_facts() -> str:
 
 
 def _build_llm_prompt(query_text: str, context_snippets: List[str]) -> str:
-    """Builds the shared grounded prompt used by both watsonx and Gemini calls."""
+    """Builds the shared grounded prompt used for the Gemini call."""
     context_block = "\n".join([f"- {s}" for s in context_snippets]) if context_snippets else "ICH M4 & FDA Pharmacovigilance Standards"
     grounding_facts = _build_grounding_facts()
     return (
@@ -357,7 +356,7 @@ async def ask_copilot(
 ) -> CopilotQueryResponse:
     """Processes user queries against pharmacovigilance and CTD domain knowledge.
 
-    Model fallback chain: IBM watsonx.ai (primary) -> Gemini 2.5 Flash -> deterministic rule-based engine.
+    Model fallback chain: Gemini 2.5 Flash (primary) -> deterministic rule-based engine.
     """
     query_text = payload.query.strip()
     if not query_text:
@@ -365,24 +364,7 @@ async def ask_copilot(
 
     context_snippets = _build_domain_context(query_text)
 
-    # 1) IBM watsonx.ai — primary model
-    if watsonx_is_configured():
-        try:
-            prompt = _build_llm_prompt(query_text, context_snippets)
-            text = watsonx_generate_text(prompt)
-            if text:
-                _, followups = _generate_offline_answer(query_text, context_snippets)
-                return CopilotQueryResponse(
-                    query=query_text,
-                    answer=text,
-                    source_context=context_snippets,
-                    suggested_followups=followups,
-                    model_used=f"IBM watsonx.ai ({settings.WATSONX_MODEL_ID}) / IBM Bob",
-                )
-        except Exception:
-            pass
-
-    # 2) Gemini 2.5 Flash — fallback if watsonx is unavailable/unconfigured or fails
+    # 1) Google Gemini 2.5 Flash — primary model
     gemini_key = os.getenv("GEMINI_API_KEY", "")
     if gemini_key and httpx is not None:
         try:
@@ -411,7 +393,7 @@ async def ask_copilot(
         except Exception:
             pass
 
-    # 3) Deterministic rule-based engine — always-available final fallback
+    # 2) Deterministic rule-based engine — always-available final fallback
     answer, followups = _generate_offline_answer(query_text, context_snippets)
     return CopilotQueryResponse(
         query=query_text,

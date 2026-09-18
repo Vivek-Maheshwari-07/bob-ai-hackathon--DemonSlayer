@@ -35,7 +35,7 @@ class CTDPDFExtractor:
     def extract_text_from_pdf(
         cls,
         pdf_source: Union[str, bytes, BinaryIO],
-        max_pages: Optional[int] = 100,
+        max_pages: Optional[int] = 300,
     ) -> str:
         """Extracts text content page-by-page from a PDF source.
         
@@ -49,12 +49,17 @@ class CTDPDFExtractor:
                 stream = io.BytesIO(pdf_source) if isinstance(pdf_source, bytes) else pdf_source
                 with pdfplumber.open(stream) as pdf:
                     total_pages = len(pdf.pages)
-                    limit = min(total_pages, max_pages) if max_pages else total_pages
+                    limit = min(total_pages, max_pages) if max_pages is not None else total_pages
                     for i in range(limit):
-                        page = pdf.pages[i]
-                        text = page.extract_text()
-                        if text:
-                            extracted_pages.append(text)
+                        # Scoped per-page so one malformed page (bad font/table)
+                        # only drops that page instead of discarding every
+                        # page already extracted before it.
+                        try:
+                            text = pdf.pages[i].extract_text()
+                            if text:
+                                extracted_pages.append(text)
+                        except Exception:
+                            continue
                 if extracted_pages:
                     return "\n\n".join(extracted_pages)
             except Exception:
@@ -65,13 +70,15 @@ class CTDPDFExtractor:
             try:
                 doc = pypdfium2.PdfDocument(pdf_source)
                 total_pages = len(doc)
-                limit = min(total_pages, max_pages) if max_pages else total_pages
+                limit = min(total_pages, max_pages) if max_pages is not None else total_pages
                 for i in range(limit):
-                    page = doc[i]
-                    textpage = page.get_textpage()
-                    text = textpage.get_text_range()
-                    if text:
-                        extracted_pages.append(text)
+                    try:
+                        textpage = doc[i].get_textpage()
+                        text = textpage.get_text_range()
+                        if text:
+                            extracted_pages.append(text)
+                    except Exception:
+                        continue
                 if extracted_pages:
                     return "\n\n".join(extracted_pages)
             except Exception:
@@ -84,7 +91,7 @@ class CTDPDFExtractor:
         cls,
         pdf_source: Union[str, bytes, BinaryIO],
         submission_title: str = "Candidate CTD Dossier (PDF)",
-        max_pages: Optional[int] = 100,
+        max_pages: Optional[int] = 300,
     ) -> DossierOutlineInput:
         """Extracts text and structures it into a normalized DossierOutlineInput."""
         raw_text = cls.extract_text_from_pdf(pdf_source, max_pages=max_pages)

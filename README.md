@@ -1,7 +1,7 @@
 # PharmSignals
-## Drug Safety Signal Detector & Regulatory Submission Readiness
+## Drug Safety Signal Detector & Regulatory Submission Readiness Checker
 
-**PharmSignals** is an enterprise-grade clinical intelligence and regulatory compliance platform built for the **IBM Bobathon 2026** under **Problem Statement P2**. The platform bridges post-marketing pharmacovigilance surveillance with pre-marketing regulatory submission readiness by combining real openFDA FAERS adverse-event signal detection (Evans Proportional Reporting Ratio, Pearson $\chi^2$, multidimensional clustering, and walk-forward longitudinal backtesting) with an automated ICH M4 Common Technical Document (CTD) dossier readiness checker and an interactive **IBM Bob AI Copilot**.
+**PharmSignals** is an enterprise-grade clinical intelligence and regulatory compliance platform built for the **IBM Bobathon 2026** under **Problem Statement P2**. The platform bridges post-marketing pharmacovigilance surveillance with pre-marketing regulatory submission readiness by combining real openFDA FAERS adverse-event signal detection (Evans Proportional Reporting Ratio, Pearson $\chi^2$, multidimensional clustering, and walk-forward longitudinal backtesting) with an automated ICH M4 Common Technical Document (CTD) dossier readiness checker and an interactive **IBM Bob AI Copilot** powered by Google Gemini 2.5 Flash.
 
 ---
 
@@ -34,16 +34,17 @@ Life sciences safety and regulatory operations face two critical, interrelated o
 
 ## Our Solution
 
-PharmSignals delivers two core, production-grade workflows in a unified clinical enterprise workspace:
+PharmSignals delivers two core workflows in a unified clinical enterprise workspace:
 
-1. **Mode 1: Signal Detection & PV Analytics**:
+1. **Mode 1: Signal Detection & PV Analytics** — fully implemented.
    - Ingests real openFDA FAERS datasets, normalizes MedDRA terminology, and computes statistical disproportionality metrics (Evans PRR, Pearson $\chi^2$, 95% Confidence Intervals).
-   - Features an interactive **Adverse Event Bubble Chart**, a **High-Priority Signals Table**, an interactive **2×2 Contingency Table Calculator**, an **Adverse Event Multidimensional Clustering Studio**, and **Digital-Twin Historical Backtesting** proving early signal detection lead times (e.g., **+242 days** on Vioxx).
-2. **Mode 2: Dossier Submission Readiness Checker**:
-   - Evaluates candidate CTD dossier structures against authoritative ICH M4 guidelines across Modules 1 to 5.
-   - Computes weighted overall readiness scores, visualizes module-wise circular completion meters, and produces prioritized **Regulatory Gap Analysis Matrices** with grounded remediation recommendations.
-3. **IBM Bob AI Copilot**:
-   - A docked conversational assistant grounded in pharmacovigilance mathematics and ICH M4 regulatory requirements that delivers explainable answers with zero hallucinations via deterministic rule-based fallback guarantees.
+   - Features an interactive **Adverse Event Bubble Chart**, a **High-Priority Signals Table**, an interactive **2×2 Contingency Table Calculator**, a live openFDA lookup for arbitrary drugs, an **Adverse Event Multidimensional Clustering Studio** (scikit-learn KMeans + PCA), and **Digital-Twin Historical Backtesting** proving early signal detection lead times (e.g., **+242 days** on Vioxx).
+2. **Mode 2: Submission Readiness Checker** — fully implemented.
+   - Evaluates candidate CTD dossier structures (JSON, plain text, or uploaded PDF) against authoritative ICH M4 guidelines across Modules 1 to 5.
+   - Computes a **criticality-weighted** overall readiness score (a missing filing-blocker section drags the score down more than a missing supporting document), visualizes module-wise completion, and produces a prioritized **Regulatory Gap Analysis Matrix** with grounded remediation recommendations and a PDF export.
+   - Cross-links to Mode 1: a drug with a confirmed FAERS/PRR safety signal automatically flags its CTD safety sections (Module 2.7, Module 5.3.6) for mandatory review.
+3. **IBM Bob AI Copilot** — fully implemented.
+   - A docked conversational assistant, grounded in pharmacovigilance mathematics and ICH M4 regulatory requirements, powered by **Google Gemini 2.5 Flash** with a deterministic rule-based fallback that guarantees a correct, zero-hallucination answer even with no API key configured.
 
 ---
 
@@ -51,13 +52,16 @@ PharmSignals delivers two core, production-grade workflows in a unified clinical
 
 - **Real openFDA FAERS Ingestion (M1)**: Automated parsing, deduplication, and MedDRA term normalization across benchmark post-marketing surveillance datasets (VIOXX, BAYCOL, AVANDIA).
 - **Evans PRR Signal Engine (M2)**: Automated mathematical computation of PRR, Pearson Chi-Square ($\chi^2$), $p$-values, and log-normal 95% Confidence Intervals with standard regulatory classification (`SIGNAL`, `WEAK_SIGNAL`, `NOISE`).
+- **Live openFDA Lookup**: Queries the real openFDA `drug/event.json` API live for any drug name, not limited to the three pre-loaded benchmarks.
 - **Interactive 2×2 Contingency Workspace**: Real-time custom disproportionality calculations with 1-click benchmark presets (*Vioxx MI*, *Baycol Rhabdo*, *Avandia Heart Failure*, *Ibuprofen Non-Signal*).
 - **Multidimensional Adverse Event Clustering**: Real-time unsupervised clustering via `scikit-learn` (`StandardScaler`, `KMeans`, `PCA` 2D projection) across 7 clinical features (PRR, cases, mortality rate, hospitalization rate, serious event rate, mean age, sex ratio) surfacing distinct clinical phenotypes.
 - **Digital Twin Walk-Forward Backtesting (M3)**: Reconstructs longitudinal monthly PRR trajectories demonstrating **242 days (~8 months)** of early detection lead time before Vioxx's FDA market withdrawal.
-- **ICH M4 CTD Readiness Checker (M4)**: Validates dossier outlines across Modules 1–5, computing granular completeness percentages and identifying critical missing sections.
+- **ICH M4 CTD Readiness Checker (M4)**: Validates dossier outlines across Modules 1–5 using a hybrid exact-ID + semantic (sentence-embedding) matcher, with a global optimal assignment between dossier sections and ICH requirements rather than a greedy match.
+- **Criticality-Weighted Readiness Score**: Overall and per-module completeness weight `CRITICAL` sections above `MAJOR`/`STANDARD`/`OPTIONAL` ones, so the headline score reflects actual filing risk.
 - **Priority Regulatory Gap Matrix**: Ranks missing and incomplete sections by severity (`CRITICAL`, `MAJOR`, `STANDARD`) with actionable remediation roadmaps and official ICH citations.
 - **Multi-Format Dossier Ingestion**: Ingests candidate presets (*Vioxx NDA 21-042*, *BOB-701 Oncology IND*, *Phase 1 IND EXP-101*), raw structured text/JSON, and multipart PDF files.
-- **Dual-Engine IBM Bob Copilot**: Conversational reasoning engine answering clinical and regulatory queries with live domain grounding and deterministic offline fallback guarantees.
+- **Mode 1 ↔ Mode 2 Safety Cross-Link**: A confirmed FAERS signal for a drug automatically flags its CTD safety sections for mandatory review.
+- **IBM Bob Copilot**: Conversational reasoning engine (Google Gemini 2.5 Flash primary, deterministic rule-based fallback) answering clinical and regulatory queries with live domain grounding.
 
 ---
 
@@ -80,9 +84,11 @@ flowchart TD
     subgraph Mode_2 [Mode 2: Dossier Submission Readiness]
         Hub --> Ingest[Dossier Ingestion PDF / Text / Presets]
         Ingest --> RAG[ICH M4 Knowledge Base M4]
-        RAG --> Score[Module 1-5 Readiness Score]
+        RAG --> Score[Weighted Module 1-5 Readiness Score]
         RAG --> Gap[Priority Regulatory Gap Matrix]
     end
+
+    PRR -.Confirmed Signal.-> Gap
 
     subgraph Copilot [Conversational Copilot]
         Hub --> Bob[IBM Bob AI Copilot]
@@ -96,7 +102,7 @@ flowchart TD
 ## Demonstration & Media
 
 - **Demo Video Walkthrough**: [https://youtu.be/7POfIsw83OA](https://youtu.be/7POfIsw83OA)
-- **Live Deployment**: `NOT DEPLOYED` (The application is evaluated locally via the reproducible setup below and the recorded demo video).
+- **Live Deployment**: `NOT DEPLOYED` (the application is evaluated locally via the reproducible setup below and the recorded demo video). Reference cloud deployment steps are documented in [`DEPLOY.md`](DEPLOY.md).
 - **Slide Deck Presentation**: [`presentation/slides.pdf`](presentation/slides.pdf) (14-slide executive presentation covering Problem, Solution, Demo/Architecture, IBM Technology Integration, and Impact).
 - **Verified Application Screenshots**:
   - [demo/screenshots/01-dashboard.png](demo/screenshots/01-dashboard.png) — Central Pharmacovigilance Dashboard with KPIs & Bubble Chart
@@ -113,11 +119,11 @@ flowchart TD
 |---|---|---|
 | **Frontend** | Next.js 14 (App Router), React 18, TypeScript, Tailwind CSS | High-performance, white-first clinical enterprise workspace |
 | **Visual Analytics** | Recharts | Adverse event bubble charts, 2D PCA cluster landscapes, time-series PRR curves, module progress meters |
-| **Backend API** | Python 3.10+, FastAPI, Uvicorn, Pydantic v2 | High-throughput asynchronous REST API services (17 endpoints) |
-| **Machine Learning & Stats** | scikit-learn, NumPy, SciPy, Pandas | KMeans clustering, PCA 2D reduction, Evans PRR, Pearson $\chi^2$, and contingency table math |
-| **RAG & Knowledge Base** | In-Memory Retrieval Index | Authoritative ICH M4 guideline retrieval and section verification |
-| **AI Copilot** | IBM Bob / Google Gemini 2.5 Flash / watsonx.ai | Grounded clinical explanation and regulatory remediation planning |
-| **DevOps & Testing** | Concurrently, Node.js, Pytest | Cross-platform 1-command startup and 121 automated tests |
+| **Backend API** | Python 3.10+, FastAPI, Uvicorn, Pydantic v2 | High-throughput asynchronous REST API services |
+| **Machine Learning & Stats** | scikit-learn, NumPy, SciPy, Pandas | KMeans clustering, PCA 2D reduction, Evans PRR, Pearson $\chi^2$, contingency table math, and a global optimal (Hungarian-algorithm) match between dossier sections and ICH requirements |
+| **RAG & Knowledge Base** | `sentence-transformers` embeddings + in-memory retrieval index | Authoritative ICH M4 guideline retrieval, exact + semantic section verification |
+| **AI Copilot** | IBM Bob persona, powered by **Google Gemini 2.5 Flash** | Grounded clinical explanation and regulatory remediation planning, with a deterministic rule-based fallback when no API key is configured |
+| **DevOps & Testing** | Concurrently, Node.js, Pytest | Cross-platform 1-command startup and 127 automated backend tests |
 
 ---
 
@@ -128,13 +134,13 @@ IBM Bob was utilized in two distinct, impactful capacities:
 ### 1. IBM Bob as Development & Engineering SDLC Partner
 - **Requirements Decomposition**: IBM Bob analyzed the official Industry Problem Statements P2 requirements, mapping clinical and regulatory specifications to software components.
 - **Architecture & Implementation**: Guided the design of the dual-engine architecture, separating statistical signal calculation (NumPy/SciPy/Pandas) from the ICH M4 compliance verification pipeline.
-- **Test Suite Generation**: Assisted in authoring comprehensive automated tests across all sub-modules, resulting in **121 passing unit tests** covering edge cases, contingency math, schema validation, and API contracts.
+- **Test Suite Generation**: Assisted in authoring comprehensive automated tests across all sub-modules, resulting in **127 passing unit tests** covering edge cases, contingency math, schema validation, and API contracts.
 - **Documentation & Compliance**: Streamlined alignment with the official IBM Bobathon Submission Template Guide.
 
 ### 2. Runtime IBM Bob Copilot in the Application
-- **Domain-Grounded Assistance**: An interactive right-side drawer Copilot (`/api/v1/copilot/query`) directly accessible from any workspace.
+- **Domain-Grounded Assistance**: An interactive right-side drawer Copilot (`/api/v1/copilot/query`) directly accessible from any workspace, powered by **Google Gemini 2.5 Flash**.
 - **Context Injection**: Dynamically injects live calculations (active PRR values, $\chi^2$ statistics, contingency table margins) and ICH M4 regulatory guidelines into copilot prompts.
-- **Deterministic Offline Guarantee**: Implements a dual-engine design. When external LLM APIs are unavailable, the Copilot automatically fails over to a deterministic, rule-based pharmacovigilance expert engine, ensuring zero hallucinations during regulatory audits.
+- **Deterministic Offline Guarantee**: When `GEMINI_API_KEY` is not configured (or the live call fails), the Copilot automatically fails over to a deterministic, rule-based pharmacovigilance expert engine, ensuring zero hallucinations and full functionality during regulatory audits or offline judging.
 
 ---
 
@@ -142,7 +148,7 @@ IBM Bob was utilized in two distinct, impactful capacities:
 
 To ensure complete transparency and regulatory integrity:
 - **FAERS Post-Marketing Surveillance**: Mode 1 runs on genuine openFDA FAERS quarterly adverse event records (2004–2023) cleaned and normalized for benchmark safety signals (VIOXX / rofecoxib, BAYCOL / cerivastatin, AVANDIA / rosiglitazone).
-- **Synthetic M4 Benchmark Dossiers**: The candidate dossier outlines (including Vioxx NDA 21-042 outline, BOB-701 Oncology IND outline, and Phase 1 IND outline) and the test benchmark dossier (comprising **104 checkable entries: 57 PRESENT, 47 MISSING; raw completeness 54.81% / displayed completeness 55%**) are **synthetic benchmark test dossiers** constructed from published ICH M4 CTD specifications. They are provided solely for testing, validation, and demonstration purposes and do not represent proprietary sponsor submissions.
+- **Synthetic M4 Benchmark Dossiers**: The candidate dossier outlines (Vioxx NDA 21-042, BOB-701 Oncology IND, and Phase 1 IND EXP-101) are **synthetic benchmark test dossiers** constructed from published ICH M4 CTD specifications, provided solely for testing, validation, and demonstration purposes. They do not represent proprietary sponsor submissions, and the readiness percentage shown for each will vary by preset (each is intentionally only partially complete, to exercise the gap-detection engine).
 
 ---
 
@@ -154,6 +160,8 @@ To ensure complete transparency and regulatory integrity:
 ├── README.md                # Master documentation and quickstart instructions
 ├── CONTRIBUTING.md          # Contribution and development guidelines
 ├── LICENSE                  # Apache 2.0 license
+├── DEPLOY.md                # Cloud deployment reference guide
+├── render.yaml               # Render blueprint for the backend
 ├── package.json             # Root cross-platform launcher (npm run dev)
 ├── package-lock.json        # Root dependency lockfile
 │
@@ -170,7 +178,7 @@ To ensure complete transparency and regulatory integrity:
 │   └── backend/             # FastAPI backend (M1 FAERS, M2 PRR, M3 Twin, M4 RAG, Copilot)
 │
 ├── demo/                    # Hackathon demonstration artifacts
-│   ├── demo-video-link.txt  # Link to recorded demo video (https://youtu.be/7POfIsw83OA)
+│   ├── demo-video-link.txt  # Link to recorded demo video
 │   ├── live-demo-url.txt    # Deployed application live URL (NOT DEPLOYED)
 │   ├── screenshots/         # 5 genuine application screenshots captured from running app
 │   └── README.md            # Demo artifacts documentation
@@ -216,7 +224,7 @@ npm run dev
 ```bash
 cd src/backend
 pip install -r requirements.txt
-python -m pytest                    # Runs 121 automated tests
+python -m pytest                    # Runs 127 automated tests
 uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
 ```
 
@@ -234,7 +242,7 @@ npm run dev
 - **Node.js**: Version 18 LTS or higher (tested on Node.js 20).
 - **Python**: Version 3.10 or higher (tested on Python 3.11 and 3.13).
 - **Operating System**: Windows 10/11, macOS, or Linux.
-- **Optional**: `GEMINI_API_KEY` or `WATSONX_API_KEY` *(Note: The platform features a 100% deterministic offline fallback engine when API keys are omitted, ensuring full functionality without external cloud dependencies)*.
+- **Optional**: `GEMINI_API_KEY` *(the platform features a 100% deterministic offline fallback engine when this is omitted, ensuring full functionality without external cloud dependencies)*.
 
 ---
 
@@ -245,10 +253,8 @@ Copy `src/.env.example` to `src/.env` if you wish to configure optional credenti
 | Variable | Required | Default | Purpose |
 |---|---|---|---|
 | `NEXT_PUBLIC_API_BASE_URL` | No | `http://localhost:8000/api/v1` | Base URL for frontend-to-backend API communication |
-| `GEMINI_API_KEY` | No | *Empty* | Optional API key for Google Gemini 2.5 Flash live reasoning |
-| `WATSONX_API_KEY` | No | *Empty* | Optional API key for IBM watsonx.ai foundation models |
-| `WATSONX_PROJECT_ID` | No | *Empty* | Optional IBM watsonx.ai project ID |
-| `DATABASE_URL` | No | `postgresql://...` | Optional PostgreSQL connection URL (in-memory engine default) |
+| `GEMINI_API_KEY` | No | *Empty* | Optional API key for Google Gemini 2.5 Flash, powering the IBM Bob Copilot and M4 grounded reasoning |
+| `DATABASE_URL` | No | `postgresql://...` | Unused by the current feature set — FAERS/PRR data and the ICH M4 knowledge base ship as flat files; reserved for future persistence |
 
 ---
 
@@ -258,7 +264,7 @@ Copy `src/.env.example` to `src/.env` if you wish to configure optional credenti
    ```bash
    pytest src/backend/tests -q
    ```
-   *Expected Result:* `121 passed` in ~10 seconds.
+   *Expected Result:* `127 passed` in under a minute.
 
 2. **Verify Backend Health**:
    ```bash
@@ -287,7 +293,8 @@ Copy `src/.env.example` to `src/.env` if you wish to configure optional credenti
 1. **Decision-Support Scope**: PharmSignals is an analytical decision-support prototype and does not replace statutory health authority filings or qualified medical judgment.
 2. **OpenFDA Record Boundaries**: Electronic openFDA reporting records begin in 2004; historical events prior to 2004 (such as Baycol's 2001 withdrawal) are transparently identified as electronic boundary limitations rather than synthesized.
 3. **Statistical Signal vs. Causality**: Disproportionality scores (PRR > 2.0, $\chi^2 \ge 4.0$) indicate statistical reporting association and require expert safety review; they do not establish biological or clinical causality.
-4. **Cloud Deployment**: The application is configured for reproducible local execution; live deployment is marked `NOT DEPLOYED`.
+4. **PDF Extraction**: The M4 PDF ingestion path reads up to 300 pages of text-layer content; scanned/image-only PDFs with no extractable text layer will report a low or zero completeness score rather than an explicit "couldn't read this file" error.
+5. **Cloud Deployment**: The application is configured for reproducible local execution; live deployment is marked `NOT DEPLOYED`, with reference steps in [`DEPLOY.md`](DEPLOY.md) for a Render (backend) + Vercel (frontend) setup.
 
 ---
 
@@ -297,7 +304,7 @@ Copy `src/.env.example` to `src/.env` if you wish to configure optional credenti
 2. **Strict Data Integrity**: 100% real openFDA FAERS data and verified PRR/$\chi^2$ statistics with zero fabricated analytical values.
 3. **Quantifiable Clinical Impact**: Empirically demonstrating **242 days of early signal detection** in the Vioxx benchmark backtest.
 4. **Resilient IBM Bob Copilot**: Delivering an explainable, domain-grounded assistant with deterministic offline fallback guarantees ensuring reliability under all network conditions.
-5. **High Test Coverage**: 121 comprehensive automated tests across all clinical, statistical, parsing, and RAG components.
+5. **High Test Coverage**: 127 comprehensive automated tests across all clinical, statistical, parsing, and RAG components.
 
 ---
 
@@ -307,6 +314,7 @@ Copy `src/.env.example` to `src/.env` if you wish to configure optional credenti
 - **Solution Overview & Framework**: [docs/solution-overview.md](docs/solution-overview.md)
 - **Technical Architecture & Data Flow**: [docs/architecture.md](docs/architecture.md)
 - **Installation & Setup Guide**: [docs/setup-guide.md](docs/setup-guide.md)
+- **Deployment Guide**: [DEPLOY.md](DEPLOY.md)
 - **Source Code Architecture**: [src/README.md](src/README.md)
 
 ---

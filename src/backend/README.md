@@ -11,7 +11,7 @@ backend/
 ├── app/
 │   ├── main.py        # Application entry point and router registrations
 │   ├── api/           # API endpoints (safety, ctd, copilot)
-│   ├── services/      # Business logic (PRR analysis, CTD validation, watsonx)
+│   ├── services/      # Business logic (PRR analysis, CTD validation, Gemini)
 │   ├── models/        # SQLAlchemy / Database ORM models
 │   ├── schemas/       # Pydantic request and response schemas
 │   ├── core/          # App settings, environment loading, and security
@@ -35,5 +35,5 @@ backend/
    - Missing section detection, readiness scoring, and gap report compilation.
 
 3. **IBM Bob Copilot Service (`services/copilot_service.py`)**:
-   - Orchestrates context assembly for IBM watsonx.ai / Granite models.
+   - Orchestrates context assembly for Google Gemini 2.5 Flash.
    - Handles natural-language Q&A regarding active safety signals and CTD readiness reports.

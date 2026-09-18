@@ -17,10 +17,8 @@ Files: [`src/backend/Dockerfile`](src/backend/Dockerfile), [`src/backend/.docker
 
 1. Push this repo to GitHub.
 2. In Render: **New > Blueprint**, select the repo. Render reads `render.yaml` at the repo root and creates a `pharmsignals-backend` web service that builds `src/backend/Dockerfile`.
-3. Set the secret env vars Render will prompt for (marked `sync: false` in `render.yaml`):
+3. Set the secret env var Render will prompt for (marked `sync: false` in `render.yaml`):
    - `GEMINI_API_KEY`
-   - `WATSONX_API_KEY`
-   - `WATSONX_PROJECT_ID`
 4. Deploy. Render assigns a public URL like `https://pharmsignals-backend.onrender.com`.
 5. Verify: `GET https://<your-backend>.onrender.com/api/v1/health` should return `{"status": "healthy", ...}`.
 
@@ -38,14 +36,10 @@ Files: [`src/backend/Dockerfile`](src/backend/Dockerfile), [`src/backend/.docker
 
 | Variable | Required | Notes |
 |---|---|---|
-| `GEMINI_API_KEY` | Optional | Enables Gemini fallback for Copilot and M4 reasoning. |
-| `WATSONX_API_KEY` | Optional | Enables IBM watsonx.ai as the **primary** Copilot model. |
-| `WATSONX_PROJECT_ID` | Optional | Required alongside `WATSONX_API_KEY`. |
-| `WATSONX_URL` | Optional | Defaults to `https://us-south.ml.cloud.ibm.com`. |
-| `WATSONX_MODEL_ID` | Optional | Defaults to `ibm/granite-3-8b-instruct`. |
+| `GEMINI_API_KEY` | Optional | Enables Google Gemini 2.5 Flash as the **primary** model for both the IBM Bob Copilot and the M4 grounded reasoning. |
 | `ENVIRONMENT` | Optional | `production` on deploy. |
 
-If neither `WATSONX_*` nor `GEMINI_API_KEY` are set, Copilot and the M4 reasoner automatically fall back to the deterministic rule-based engine — the app still runs and demos correctly with zero LLM keys configured.
+If `GEMINI_API_KEY` is not set, Copilot and the M4 reasoner automatically fall back to the deterministic rule-based engine — the app still runs and demos correctly with zero LLM keys configured.
 
 No database is required to run the current feature set (FAERS/PRR data and the ICH M4 knowledge base ship as flat files under `src/backend/app/data` and `src/backend/app/m4_rag/knowledge`, bundled into the Docker image).
 

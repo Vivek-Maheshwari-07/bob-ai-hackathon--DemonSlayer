@@ -20,8 +20,11 @@ dist/
 downloads/
 eggs/
 .eggs/
-lib/
-lib64/
+# Anchored to repo root: an unanchored "lib/" also matches src/frontend/lib/
+# (the frontend's API client + type definitions), silently excluding it from
+# version control — anchoring keeps the Python-venv intent without that.
+/lib/
+/lib64/
 parts/
 sdist/
 var/

@@ -7,10 +7,13 @@ Module 5.3.6 (Reports of Postmarketing Experience / PSUR-PBRER, the
 Module 5 clinical safety update section) — as requiring mandatory review.
 """
 
+import logging
 from typing import Any, Dict, List, Optional
 
 from app.m2_prr.signal_status import get_drug_signal_status
 from app.m4_rag.schema import GapItem
+
+logger = logging.getLogger(__name__)
 
 # ICH M4 section IDs treated as "safety-related" for the purposes of this linkage.
 SAFETY_FLAG_SECTION_IDS = ["2.7", "5.3.6"]
@@ -39,7 +42,15 @@ def apply_safety_signal_flags(
     try:
         status = get_drug_signal_status(drug_upper)
     except Exception:
-        # Signal pipeline unavailable — never let this break the dossier check.
+        # Signal pipeline unavailable — never let this break the dossier
+        # check, but log it: silently returning "no signal" here would
+        # otherwise look identical to a drug that's genuinely clean, which
+        # is a real false-negative risk in a safety-critical cross-link.
+        logger.exception(
+            "safety_signal_link: get_drug_signal_status(%r) failed; "
+            "reporting no confirmed signal as a fail-soft default.",
+            drug_upper,
+        )
         return {
             "drug_name": drug_upper,
             "has_confirmed_signal": False,

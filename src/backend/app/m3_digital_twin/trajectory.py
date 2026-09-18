@@ -60,15 +60,17 @@ def generate_prr_trajectory(
     for _, row in df.iterrows():
         is_signal = bool(row.get("signal_met", False))
         is_proj = bool(row.get("is_projected", False))
+        a_cumulative = row["a_cumulative"]
+        drug_total_cumulative = row.get("drug_total_cumulative", 0)
         trajectory.append({
             # Key kept as 'quarter' for frontend compatibility; true granularity is monthly (YYYY-MM)
             "quarter": str(row["year_month"]),
             "prr": round(float(row["prr"]), 4),
             "chi_square": round(float(row["chi_square"]), 4),
-            "n_cases": int(row["a_cumulative"]),
+            "n_cases": 0 if pd.isna(a_cumulative) else int(a_cumulative),
             "signal_status": "SIGNAL" if is_signal else "NOISE",
             "is_projected": is_proj,
-            "drug_total_cumulative": int(row.get("drug_total_cumulative", 0)),
+            "drug_total_cumulative": 0 if pd.isna(drug_total_cumulative) else int(drug_total_cumulative),
         })
 
     return trajectory
@@ -204,7 +206,8 @@ def get_emerging_signals(
     recent = drug_results[-quarters_window:]
     prr_values = [r["prr"] for r in recent]
 
-    is_increasing = all(prr_values[i] <= prr_values[i + 1] for i in range(len(prr_values) - 1))
+    # Strictly increasing: a flat/plateaued PRR trend is not "emerging."
+    is_increasing = all(prr_values[i] < prr_values[i + 1] for i in range(len(prr_values) - 1))
     latest = recent[-1]
     previous_statuses = [r["signal_status"] for r in recent[:-1]]
     was_below_threshold = any(s != "SIGNAL" for s in previous_statuses)

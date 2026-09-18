@@ -33,7 +33,7 @@ flowchart TD
     end
 
     subgraph AI_Reasoning [AI & Grounding Layer]
-        RAG --> LLM[Google Gemini 2.5 Flash / IBM watsonx.ai]
+        RAG --> LLM[Google Gemini 2.5 Flash]
         BOB --> LLM
         RAG --> FALLBACK[Deterministic Regulatory Fallback Engine]
         BOB --> FALLBACK
@@ -141,7 +141,7 @@ sequenceDiagram
 | **Analytics (M2)** | PRR & Chi-Square | NumPy, SciPy (`scipy.stats.chi2_contingency`) | Evans disproportionality, uncorrected Pearson chi-square, 95% log-normal CIs |
 | **Analytics (M3)** | Digital Twin Backtest | Pandas, NumPy | Longitudinal monthly walk-forward simulation, early detection lead-time calculation |
 | **Readiness (M4)** | ICH M4 RAG Engine | In-Memory Retrieval, Pydantic v2 | Authoritative Modules 1–5 guideline verification, completeness scoring, gap severity |
-| **Copilot** | Domain Reasoning | IBM Bob, Gemini 2.5 Flash, Rule Fallback | Live domain context injection, explainable clinical narrative, zero-hallucination fallback |
+| **Copilot** | Domain Reasoning | IBM Bob, Google Gemini 2.5 Flash, Rule Fallback | Live domain context injection, explainable clinical narrative, zero-hallucination fallback |
 
 ---
 

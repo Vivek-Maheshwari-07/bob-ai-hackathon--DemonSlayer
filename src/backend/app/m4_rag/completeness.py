@@ -18,10 +18,21 @@ from app.m4_rag.schema import (
 class CompletenessScorer:
     """Calculates deterministic completeness metrics for CTD dossiers."""
 
-    # Transparent scoring weights
+    # Transparent scoring weights (per-section status score)
     WEIGHT_PRESENT = 1.0
     WEIGHT_PARTIAL = 0.5
     WEIGHT_MISSING = 0.0
+
+    # Regulatory-criticality weights: a missing/partial CRITICAL section (a
+    # direct Refusal-to-File blocker) counts for more than a STANDARD one, so
+    # the headline readiness score reflects filing risk rather than a flat
+    # section count.
+    CRITICALITY_WEIGHTS = {
+        CriticalityLevel.CRITICAL: 3.0,
+        CriticalityLevel.MAJOR: 2.0,
+        CriticalityLevel.STANDARD: 1.0,
+        CriticalityLevel.OPTIONAL: 0.5,
+    }
 
     MODULE_NAMES = {
         1: "Module 1: Administrative Information",
@@ -38,12 +49,17 @@ class CompletenessScorer:
         self, gap_items: List[GapItem]
     ) -> Tuple[float, Dict[str, ModuleCompleteness]]:
         """Calculates overall completeness percentage and module-wise breakdown.
-        
-        Formula:
-            earned_points = (present_count * 1.0) + (partial_count * 0.5) + (missing_count * 0.0)
-            max_points = total_required * 1.0
+
+        Formula (criticality-weighted):
+            earned_points = sum(criticality_weight(item) * status_score(item))
+            max_points = sum(criticality_weight(item))
             completeness = (earned_points / max_points) * 100
-            
+
+        where status_score is 1.0 / 0.5 / 0.0 for PRESENT / PARTIAL / MISSING,
+        and criticality_weight scales CRITICAL sections higher than STANDARD
+        ones, so a missing filing-blocker section drags the score down more
+        than a missing supporting document would.
+
         Returns:
             Tuple of (overall_completeness_percentage, module_metrics_dict)
         """
@@ -69,8 +85,15 @@ class CompletenessScorer:
                 if i.status != GapStatus.PRESENT and i.criticality == CriticalityLevel.CRITICAL
             )
 
-            mod_earned = (present_cnt * self.WEIGHT_PRESENT) + (partial_cnt * self.WEIGHT_PARTIAL)
-            mod_possible = total_req * self.WEIGHT_PRESENT
+            mod_earned = 0.0
+            mod_possible = 0.0
+            for i in items:
+                w = self.CRITICALITY_WEIGHTS.get(i.criticality, 1.0)
+                if i.status == GapStatus.PRESENT:
+                    mod_earned += w * self.WEIGHT_PRESENT
+                elif i.status == GapStatus.PARTIAL:
+                    mod_earned += w * self.WEIGHT_PARTIAL
+                mod_possible += w * self.WEIGHT_PRESENT
 
             mod_pct = (mod_earned / mod_possible * 100.0) if mod_possible > 0 else 0.0
             mod_pct = round(mod_pct, 2)
