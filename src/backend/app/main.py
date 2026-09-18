@@ -9,6 +9,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.api.v1.endpoints.copilot import router as copilot_router
 from app.api.v1.endpoints.m4_checker import router as m4_router
 from app.api.v1.endpoints.signal_detection import router as signals_router
+from app.core.config import settings
 
 app = FastAPI(
     title="Drug Safety Signal Detector & Regulatory Submission Readiness Checker API",
@@ -16,11 +17,15 @@ app = FastAPI(
     version="0.1.0",
 )
 
-# Configure CORS
+# Configure CORS. Allowed origins come from the CORS_ORIGINS env var (see
+# app/core/config.py) — set it to the deployed Vercel frontend URL(s) in
+# production. The app has no cookie/session-based auth, so credentials are
+# not needed cross-origin.
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
+    allow_origins=settings.cors_origins_list,
+    allow_origin_regex=settings.CORS_ORIGIN_REGEX,
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
 )
