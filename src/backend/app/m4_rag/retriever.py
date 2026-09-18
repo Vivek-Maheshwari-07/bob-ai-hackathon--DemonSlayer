@@ -5,9 +5,13 @@ similarity retrieval (sentence-transformers) grounded in the verified
 ICH M4 knowledge base.
 """
 
-from typing import List, Optional, Tuple
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, List, Optional, Tuple
 import numpy as np
-from sentence_transformers import SentenceTransformer
+
+if TYPE_CHECKING:
+    from sentence_transformers import SentenceTransformer
 
 from app.m4_rag.knowledge.loader import get_knowledge_base, KnowledgeBaseLoader
 from app.m4_rag.schema import (
@@ -20,7 +24,7 @@ EMBEDDING_MODEL_NAME = "all-MiniLM-L6-v2"
 
 # Loaded lazily and shared across ICHRetriever instances — the model is
 # expensive to load but stateless/thread-safe to reuse for encoding.
-_shared_embedding_model: Optional[SentenceTransformer] = None
+_shared_embedding_model: Optional["SentenceTransformer"] = None
 
 # The knowledge base content is static per-process, but a fresh ICHRetriever
 # (and therefore a fresh embedding pass) is created on every M4 pipeline run.
@@ -30,9 +34,18 @@ _shared_embedding_model: Optional[SentenceTransformer] = None
 _corpus_embedding_cache: dict = {}
 
 
-def _get_embedding_model() -> SentenceTransformer:
+def _get_embedding_model() -> "SentenceTransformer":
     global _shared_embedding_model
     if _shared_embedding_model is None:
+        # Imported here rather than at module load time: sentence-transformers
+        # pulls in torch, whose import alone can take tens of seconds. main.py
+        # imports this module transitively at process startup (before Uvicorn
+        # binds its port), so doing this import eagerly can push the server
+        # past Render's port-scan timeout on slower/constrained instances even
+        # though the app is otherwise healthy. Deferring it to first actual
+        # use (the first M4 semantic-match call) keeps startup fast; behavior
+        # is unchanged once it's called.
+        from sentence_transformers import SentenceTransformer
         _shared_embedding_model = SentenceTransformer(EMBEDDING_MODEL_NAME)
     return _shared_embedding_model
 
