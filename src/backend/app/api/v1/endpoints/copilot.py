@@ -24,6 +24,8 @@ from app.m2_prr.prr_engine import (
     DEFAULT_CHI_SQUARE_THRESHOLD,
     DEFAULT_MIN_CASES,
 )
+from app.core.watsonx_client import generate_text as watsonx_generate_text, is_configured as watsonx_is_configured
+from app.core.config import settings
 from app.m3_digital_twin.trajectory import run_drug_backtest
 from app.m4_rag.knowledge.loader import get_knowledge_base
 
@@ -310,6 +312,40 @@ def _generate_offline_answer(query: str, context: List[str]) -> Tuple[str, List[
     return answer, followups
 
 
+def _build_grounding_facts() -> str:
+    """Pulls live grounding facts from real backtest data for the LLM prompt."""
+    try:
+        _vbt = run_drug_backtest("VIOXX")
+        _abt = run_drug_backtest("AVANDIA")
+        _bbt = run_drug_backtest("BAYCOL")
+        return (
+            f"Evans PRR formula (PRR >= {DEFAULT_PRR_THRESHOLD}, Chi2 >= {DEFAULT_CHI_SQUARE_THRESHOLD}, a >= {DEFAULT_MIN_CASES}), "
+            f"Vioxx (+{_vbt['lead_time_days']} days lead time before {_vbt['market_withdrawal_quarter']} withdrawal, "
+            f"first signal {_vbt['first_signal_quarter']} PRR={_vbt['first_signal_prr']:.4f}), "
+            f"Avandia (+{_abt['lead_time_days']} days lead time before {_abt['market_withdrawal_quarter']} boxed warning), "
+            f"Baycol (withdrawal {_bbt['market_withdrawal_quarter']}, verdict={_bbt['verdict']}), "
+            f"ICH M4 Modules 1-5."
+        )
+    except Exception:
+        return "Evans PRR formula (PRR >= 2.0, Chi2 >= 4.0, a >= 3) and ICH M4 Modules 1-5."
+
+
+def _build_llm_prompt(query_text: str, context_snippets: List[str]) -> str:
+    """Builds the shared grounded prompt used by both watsonx and Gemini calls."""
+    context_block = "\n".join([f"- {s}" for s in context_snippets]) if context_snippets else "ICH M4 & FDA Pharmacovigilance Standards"
+    grounding_facts = _build_grounding_facts()
+    return (
+        f"You are IBM Bob, an expert AI Copilot specializing in Pharmacovigilance Safety Signal Detection and ICH M4 CTD Regulatory Submission Readiness.\n\n"
+        f"VERIFIED DOMAIN CONTEXT:\n{context_block}\n\n"
+        f"USER QUESTION: {query_text}\n\n"
+        f"STRICT INSTRUCTIONS:\n"
+        f"1. Provide a direct, professional, well-structured answer in markdown with bullet points.\n"
+        f"2. Rely on verified facts: {grounding_facts}\n"
+        f"3. Do NOT hallucinate regulatory approvals or clinical efficacy claims.\n"
+        f"4. Keep the answer concise (2-4 paragraphs maximum)."
+    )
+
+
 @router.post(
     "/query",
     response_model=CopilotQueryResponse,
@@ -319,46 +355,39 @@ def _generate_offline_answer(query: str, context: List[str]) -> Tuple[str, List[
 async def ask_copilot(
     payload: CopilotQueryRequest = Body(...),
 ) -> CopilotQueryResponse:
-    """Processes user queries against pharmacovigilance and CTD domain knowledge."""
+    """Processes user queries against pharmacovigilance and CTD domain knowledge.
+
+    Model fallback chain: IBM watsonx.ai (primary) -> Gemini 2.5 Flash -> deterministic rule-based engine.
+    """
     query_text = payload.query.strip()
     if not query_text:
         raise HTTPException(status_code=400, detail="Query cannot be empty.")
 
     context_snippets = _build_domain_context(query_text)
-    gemini_key = os.getenv("GEMINI_API_KEY", "")
 
-    # If Gemini API key is available and httpx is installed, invoke Gemini 2.5 Flash
+    # 1) IBM watsonx.ai — primary model
+    if watsonx_is_configured():
+        try:
+            prompt = _build_llm_prompt(query_text, context_snippets)
+            text = watsonx_generate_text(prompt)
+            if text:
+                _, followups = _generate_offline_answer(query_text, context_snippets)
+                return CopilotQueryResponse(
+                    query=query_text,
+                    answer=text,
+                    source_context=context_snippets,
+                    suggested_followups=followups,
+                    model_used=f"IBM watsonx.ai ({settings.WATSONX_MODEL_ID}) / IBM Bob",
+                )
+        except Exception:
+            pass
+
+    # 2) Gemini 2.5 Flash — fallback if watsonx is unavailable/unconfigured or fails
+    gemini_key = os.getenv("GEMINI_API_KEY", "")
     if gemini_key and httpx is not None:
         try:
             url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={gemini_key}"
-            context_block = "\n".join([f"- {s}" for s in context_snippets]) if context_snippets else "ICH M4 & FDA Pharmacovigilance Standards"
-
-            # Pull live grounding facts from real backtest data for Gemini prompt
-            try:
-                _vbt = run_drug_backtest("VIOXX")
-                _abt = run_drug_backtest("AVANDIA")
-                _bbt = run_drug_backtest("BAYCOL")
-                grounding_facts = (
-                    f"Evans PRR formula (PRR >= {DEFAULT_PRR_THRESHOLD}, Chi2 >= {DEFAULT_CHI_SQUARE_THRESHOLD}, a >= {DEFAULT_MIN_CASES}), "
-                    f"Vioxx (+{_vbt['lead_time_days']} days lead time before {_vbt['market_withdrawal_quarter']} withdrawal, "
-                    f"first signal {_vbt['first_signal_quarter']} PRR={_vbt['first_signal_prr']:.4f}), "
-                    f"Avandia (+{_abt['lead_time_days']} days lead time before {_abt['market_withdrawal_quarter']} boxed warning), "
-                    f"Baycol (withdrawal {_bbt['market_withdrawal_quarter']}, verdict={_bbt['verdict']}), "
-                    f"ICH M4 Modules 1-5."
-                )
-            except Exception:
-                grounding_facts = "Evans PRR formula (PRR >= 2.0, Chi2 >= 4.0, a >= 3) and ICH M4 Modules 1-5."
-
-            prompt = (
-                f"You are IBM Bob, an expert AI Copilot specializing in Pharmacovigilance Safety Signal Detection and ICH M4 CTD Regulatory Submission Readiness.\n\n"
-                f"VERIFIED DOMAIN CONTEXT:\n{context_block}\n\n"
-                f"USER QUESTION: {query_text}\n\n"
-                f"STRICT INSTRUCTIONS:\n"
-                f"1. Provide a direct, professional, well-structured answer in markdown with bullet points.\n"
-                f"2. Rely on verified facts: {grounding_facts}\n"
-                f"3. Do NOT hallucinate regulatory approvals or clinical efficacy claims.\n"
-                f"4. Keep the answer concise (2-4 paragraphs maximum)."
-            )
+            prompt = _build_llm_prompt(query_text, context_snippets)
             llm_payload = {
                 "contents": [{"parts": [{"text": prompt}]}],
                 "generationConfig": {"temperature": 0.1, "maxOutputTokens": 600},
@@ -382,7 +411,7 @@ async def ask_copilot(
         except Exception:
             pass
 
-    # Deterministic high-quality domain answer
+    # 3) Deterministic rule-based engine — always-available final fallback
     answer, followups = _generate_offline_answer(query_text, context_snippets)
     return CopilotQueryResponse(
         query=query_text,

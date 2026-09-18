@@ -138,7 +138,7 @@ sequenceDiagram
 | **Frontend** | Client Interface | Next.js 14, React 18, Tailwind CSS, Recharts | Interactive dashboards, Bubble Charts, 2D PCA cluster landscapes, CTD meters, Bob drawer |
 | **API** | REST Gateway | FastAPI, Uvicorn, Pydantic v2 | 17 REST endpoints, asynchronous request handling, schema validation, CORS |
 | **Analytics (M1)** | Ingestion & Clustering | Pandas, scikit-learn (`KMeans`, `PCA`, `StandardScaler`) | openFDA FAERS cleaning, 7-dimension clustering into 4 clinical phenotypes |
-| **Analytics (M2)** | PRR & Chi-Square | NumPy, SciPy (`scipy.stats.chi2`) | Evans disproportionality, Yates continuity correction, 95% log-normal CIs |
+| **Analytics (M2)** | PRR & Chi-Square | NumPy, SciPy (`scipy.stats.chi2_contingency`) | Evans disproportionality, uncorrected Pearson chi-square, 95% log-normal CIs |
 | **Analytics (M3)** | Digital Twin Backtest | Pandas, NumPy | Longitudinal monthly walk-forward simulation, early detection lead-time calculation |
 | **Readiness (M4)** | ICH M4 RAG Engine | In-Memory Retrieval, Pydantic v2 | Authoritative Modules 1–5 guideline verification, completeness scoring, gap severity |
 | **Copilot** | Domain Reasoning | IBM Bob, Gemini 2.5 Flash, Rule Fallback | Live domain context injection, explainable clinical narrative, zero-hallucination fallback |

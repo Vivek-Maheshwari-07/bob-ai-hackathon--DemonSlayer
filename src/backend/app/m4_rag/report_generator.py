@@ -6,7 +6,7 @@ remediation recommendations into a structured, frontend-friendly report.
 
 import os
 from datetime import datetime, timezone
-from typing import Dict, List, Optional
+from typing import Any, Dict, List, Optional
 
 try:
     import httpx as _httpx
@@ -42,14 +42,16 @@ class ReportGenerator:
         outline: DossierOutlineInput,
         gap_items: List[GapItem],
         reasoning_insights: Optional[List[str]] = None,
+        safety_signal_linkage: Optional[Dict[str, Any]] = None,
     ) -> GapReportOutput:
         """Constructs full GapReportOutput.
-        
+
         Args:
             outline: Candidate dossier outline input.
             gap_items: Full list of evaluated ICH requirements.
             reasoning_insights: Optional LLM-grounded narrative insights.
-            
+            safety_signal_linkage: Optional Mode 1 (M2 PRR) signal cross-link summary.
+
         Returns:
             Validated GapReportOutput instance.
         """
@@ -107,6 +109,7 @@ class ReportGenerator:
             recommended_actions=recommended_actions,
             limitations=limitations,
             timestamp=now_iso,
+            safety_signal_linkage=safety_signal_linkage,
         )
 
     def _build_recommendations(

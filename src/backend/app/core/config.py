@@ -16,6 +16,7 @@ class Settings(BaseSettings):
         "WATSONX_URL",
         "https://us-south.ml.cloud.ibm.com"
     )
+    WATSONX_MODEL_ID: str = os.getenv("WATSONX_MODEL_ID", "ibm/granite-3-8b-instruct")
     IBM_BOB_CONFIG: str = os.getenv("IBM_BOB_CONFIG", "{}")
     GEMINI_API_KEY: str = os.getenv("GEMINI_API_KEY", "")
 

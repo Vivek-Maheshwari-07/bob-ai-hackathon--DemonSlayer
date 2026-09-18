@@ -1,13 +1,13 @@
 """Retriever engine for ICH M4 RAG Checker (Module M4).
 
-Provides exact section ID resolution and TF-IDF / vector space semantic
-similarity retrieval grounded in the verified ICH M4 knowledge base.
+Provides exact section ID resolution and dense embedding-based semantic
+similarity retrieval (sentence-transformers) grounded in the verified
+ICH M4 knowledge base.
 """
 
 from typing import List, Optional, Tuple
 import numpy as np
-from sklearn.feature_extraction.text import TfidfVectorizer
-from sklearn.metrics.pairwise import cosine_similarity
+from sentence_transformers import SentenceTransformer
 
 from app.m4_rag.knowledge.loader import get_knowledge_base, KnowledgeBaseLoader
 from app.m4_rag.schema import (
@@ -15,6 +15,26 @@ from app.m4_rag.schema import (
     MatchEvidence,
     MatchMethod,
 )
+
+EMBEDDING_MODEL_NAME = "all-MiniLM-L6-v2"
+
+# Loaded lazily and shared across ICHRetriever instances — the model is
+# expensive to load but stateless/thread-safe to reuse for encoding.
+_shared_embedding_model: Optional[SentenceTransformer] = None
+
+# The knowledge base content is static per-process, but a fresh ICHRetriever
+# (and therefore a fresh embedding pass) is created on every M4 pipeline run.
+# Cache the encoded corpus per KnowledgeBaseLoader instance (keyed by the
+# object itself, not id(), to avoid stale hits if an old instance is GC'd
+# and its id reused) so repeated requests don't re-embed on every call.
+_corpus_embedding_cache: dict = {}
+
+
+def _get_embedding_model() -> SentenceTransformer:
+    global _shared_embedding_model
+    if _shared_embedding_model is None:
+        _shared_embedding_model = SentenceTransformer(EMBEDDING_MODEL_NAME)
+    return _shared_embedding_model
 
 
 class ICHRetriever:
@@ -24,12 +44,17 @@ class ICHRetriever:
         self.kb = kb or get_knowledge_base()
         self._requirements: List[ICHSectionRequirement] = self.kb.get_all()
         self._corpus_texts: List[str] = []
-        self._vectorizer: Optional[TfidfVectorizer] = None
-        self._tfidf_matrix = None
+        self._model: SentenceTransformer = _get_embedding_model()
+        self._embeddings: Optional[np.ndarray] = None
         self._build_index()
 
     def _build_index(self) -> None:
-        """Constructs vector search index across the verified ICH M4 corpus."""
+        """Encodes the verified ICH M4 corpus into normalized sentence embeddings."""
+        cached = _corpus_embedding_cache.get(self.kb)
+        if cached is not None:
+            self._corpus_texts, self._embeddings = cached
+            return
+
         self._corpus_texts = []
         for req in self._requirements:
             keywords_str = " ".join(req.keywords)
@@ -40,13 +65,13 @@ class ICHRetriever:
             )
             self._corpus_texts.append(doc)
 
-        self._vectorizer = TfidfVectorizer(
-            ngram_range=(1, 2),
-            stop_words="english",
-            lowercase=True,
-            sublinear_tf=True,
+        embeddings = self._model.encode(
+            self._corpus_texts,
+            normalize_embeddings=True,
+            show_progress_bar=False,
         )
-        self._tfidf_matrix = self._vectorizer.fit_transform(self._corpus_texts)
+        self._embeddings = np.asarray(embeddings)
+        _corpus_embedding_cache[self.kb] = (self._corpus_texts, self._embeddings)
 
     def exact_match(self, section_id: str) -> Optional[ICHSectionRequirement]:
         """Performs deterministic, case-insensitive section ID lookup."""
@@ -60,18 +85,22 @@ class ICHRetriever:
         top_k: int = 3,
         min_similarity: float = 0.30,
     ) -> List[Tuple[ICHSectionRequirement, float]]:
-        """Searches ICH M4 knowledge base using cosine similarity.
-        
+        """Searches the ICH M4 knowledge base using embedding cosine similarity.
+
         Returns:
             List of (ICHSectionRequirement, similarity_score) sorted descending.
         """
-        if not query or not query.strip() or self._vectorizer is None:
+        if not query or not query.strip() or self._embeddings is None:
             return []
 
-        query_vec = self._vectorizer.transform([query.strip()])
-        scores = cosine_similarity(query_vec, self._tfidf_matrix).flatten()
+        query_vec = self._model.encode(
+            [query.strip()],
+            normalize_embeddings=True,
+            show_progress_bar=False,
+        )[0]
+        # Embeddings are L2-normalized, so the dot product is cosine similarity.
+        scores = self._embeddings @ query_vec
 
-        # Top indices
         top_indices = np.argsort(scores)[::-1][:top_k]
         results: List[Tuple[ICHSectionRequirement, float]] = []
 

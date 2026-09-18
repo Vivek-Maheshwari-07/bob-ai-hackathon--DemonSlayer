@@ -49,9 +49,9 @@ where:
 - $c$ = Case reports with other drugs and target adverse reaction
 - $d$ = Case reports with other drugs and other adverse reactions
 
-### Pearson Chi-Square ($\chi^2$) with Yates' Continuity Correction
-$$\chi^2 = \frac{N (|ad - bc| - N/2)^2}{(a + b)(c + d)(a + c)(b + d)}$$
-where $N = a + b + c + d$.
+### Pearson Chi-Square ($\chi^2$), Uncorrected
+$$\chi^2 = \frac{N (ad - bc)^2}{(a + b)(c + d)(a + c)(b + d)}$$
+where $N = a + b + c + d$. PharmSignals intentionally uses the uncorrected Pearson statistic (no Yates' continuity correction) to match the standard pharmacovigilance disproportionality convention and the hand-verified openFDA reference values quoted throughout this document (e.g. VIOXX MI $\chi^2 = 839{,}918.65$, the January 2004 backtest value $\chi^2 = 345.40$).
 
 ### 95% Log-Normal Confidence Intervals
 $$\text{Lower / Upper CI} = \exp\left( \ln(\text{PRR}) \pm 1.96 \sqrt{\frac{1}{a} - \frac{1}{a+b} + \frac{1}{c} - \frac{1}{c+d}} \right)$$

@@ -2,8 +2,10 @@
 
 from typing import Any, Dict, List, Optional
 from fastapi import APIRouter, Body, File, Form, HTTPException, Query, UploadFile, status
+from fastapi.responses import Response
 
 from app.m4_rag.knowledge.loader import get_knowledge_base
+from app.m4_rag.pdf_export import generate_gap_report_pdf
 from app.m4_rag.pipeline import check_ctd_dossier, check_ctd_pdf
 from app.m4_rag.presets import PRESET_DOSSIERS
 from app.m4_rag.schema import (
@@ -142,6 +144,35 @@ async def evaluate_pdf_dossier(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Error processing PDF dossier: {str(e)}",
+        )
+
+
+@router.post(
+    "/export-pdf",
+    summary="Export CTD Gap Report as PDF",
+    description=(
+        "Renders a previously computed gap report (the GapReportOutput returned by "
+        "/m4/check, /m4/quick-check-text, or /m4/check-pdf) as a downloadable PDF, "
+        "using that structured report as the content source."
+    ),
+)
+async def export_gap_report_pdf(
+    payload: GapReportOutput = Body(...),
+) -> Response:
+    """Renders the given gap report as a PDF file."""
+    try:
+        pdf_bytes = generate_gap_report_pdf(payload)
+        name_source = payload.drug_name or payload.submission_title or "ctd_gap_report"
+        filename = "".join(c if c.isalnum() else "_" for c in name_source).strip("_") + "_gap_report.pdf"
+        return Response(
+            content=pdf_bytes,
+            media_type="application/pdf",
+            headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+        )
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error generating PDF report: {str(e)}",
         )
 
 

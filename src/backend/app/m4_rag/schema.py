@@ -91,6 +91,14 @@ class GapItem(BaseModel):
     match_evidence: MatchEvidence
     action_item: Optional[str] = Field(default=None, description="Recommended remediation action for regulatory readiness")
     source_reference: str = Field(default="ICH M4 Guideline")
+    requires_safety_update: bool = Field(
+        default=False,
+        description="True when this section is flagged for mandatory safety review due to an active FAERS/PRR CONFIRMED_SIGNAL for the drug.",
+    )
+    safety_update_reason: Optional[str] = Field(
+        default=None,
+        description="Explanation of the confirmed signal driving the mandatory safety review flag.",
+    )
 
 
 class ModuleCompleteness(BaseModel):
@@ -124,3 +132,7 @@ class GapReportOutput(BaseModel):
     recommended_actions: List[str] = Field(default_factory=list, description="Ordered actionable remediation steps")
     limitations: List[str] = Field(default_factory=list, description="Known assessment scope and boundaries")
     timestamp: str = Field(..., description="ISO 8601 evaluation timestamp")
+    safety_signal_linkage: Optional[Dict[str, Any]] = Field(
+        default=None,
+        description="Cross-link to Mode 1 (M2 PRR) signal detection: whether this drug has an active CONFIRMED_SIGNAL and which CTD sections are flagged for mandatory safety review as a result.",
+    )

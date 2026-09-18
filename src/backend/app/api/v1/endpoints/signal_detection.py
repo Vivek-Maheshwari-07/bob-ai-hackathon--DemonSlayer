@@ -20,6 +20,12 @@ from app.m2_prr.prr_engine import (
     DEFAULT_CHI_SQUARE_THRESHOLD,
     DEFAULT_MIN_CASES,
 )
+from app.m2_prr.signal_status import (
+    get_cached_prr_results,
+    get_cached_drugs,
+    get_drug_signal_status,
+)
+from app.m2_prr.live_openfda import lookup_live_signal
 from app.m3_digital_twin.trajectory import (
     generate_prr_trajectory,
     run_vioxx_backtest,
@@ -27,10 +33,6 @@ from app.m3_digital_twin.trajectory import (
 )
 
 router = APIRouter(prefix="/signals", tags=["Module M2: Signal Detection"])
-
-# Cache M1+M2 results at module level
-_cached_results: Optional[List[Dict[str, Any]]] = None
-_cached_drugs: Optional[List[str]] = None
 
 
 class CustomPRRRequest(BaseModel):
@@ -130,46 +132,7 @@ class CustomPRRResponse(BaseModel):
 
 def _get_prr_results() -> List[Dict[str, Any]]:
     """Returns cached PRR results computed from real M1+M2 pipeline."""
-    global _cached_results, _cached_drugs
-    if _cached_results is None:
-        m1 = run_m1_pipeline()
-        ct = m1["contingency_table"]
-        results = []
-        for _, row in ct.iterrows():
-            drug = str(row["drug_name"])
-            event = str(row["event_term"])
-            n_de = float(row.get("n_drug_event", 0))
-            n_d = float(row.get("n_drug_total", 0))
-            n_e = float(row.get("n_event_total", 0))
-            n = float(row.get("n_total", 0))
-
-            stats_result = calculate_prr(n_de, n_d, n_e, n)
-            status_val = classify_signal(
-                prr=stats_result["prr"],
-                chi_square=stats_result["chi_square"],
-                n_drug_event=int(n_de),
-            )
-
-            results.append({
-                "drug_name": drug,
-                "event_term": event,
-                "n_drug_event": int(n_de),
-                "n_drug_total": int(n_d),
-                "n_event_total": int(n_e),
-                "n_total": int(n),
-                "prr": stats_result["prr"],
-                "log_prr": stats_result["log_prr"],
-                "chi_square": stats_result["chi_square"],
-                "p_value": stats_result["p_value"],
-                "lower_ci_95": stats_result["lower_ci"],
-                "upper_ci_95": stats_result["upper_ci"],
-                "signal_status": status_val,
-            })
-
-        results.sort(key=lambda x: (-x["prr"], -x["n_drug_event"]))
-        _cached_results = results
-        _cached_drugs = m1["drugs"]
-    return _cached_results
+    return get_cached_prr_results()
 
 
 @router.get(
@@ -203,9 +166,24 @@ async def get_all_signals(
 async def get_available_drugs() -> List[str]:
     """Returns list of unique drug names in the dataset."""
     try:
-        _get_prr_results()  # Ensure cached
-        global _cached_drugs
-        return _cached_drugs or []
+        return get_cached_drugs()
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get(
+    "/{drug_name}/signal-status",
+    summary="Confirmed Signal Status for a Drug",
+    description=(
+        "Returns whether the given drug currently has a CONFIRMED_SIGNAL from the "
+        "M1+M2 PRR pipeline. Used to cross-link Mode 1 (signal detection) with the "
+        "Mode 2 CTD dossier checker so safety-related dossier sections can be flagged."
+    ),
+)
+async def get_drug_signal_status_endpoint(drug_name: str) -> Dict[str, Any]:
+    """Returns confirmed-signal status and matching drug-event pairs for a drug."""
+    try:
+        return get_drug_signal_status(drug_name)
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -449,4 +427,25 @@ async def post_adverse_event_clusters(
         )
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Adverse event clustering failed: {str(e)}")
+
+
+class LiveLookupRequest(BaseModel):
+    drug_name: str = Field(..., min_length=1, description="Any drug name to query live against openFDA (not limited to the 3 pre-loaded benchmarks)")
+    event_term: Optional[str] = Field(default=None, description="Optional adverse event term; auto-discovers the top reported event for the drug if omitted")
+
+
+@router.post(
+    "/live-lookup",
+    summary="Live openFDA PRR Signal Lookup (Arbitrary Drug)",
+    description=(
+        "Queries the real openFDA drug/event.json API live for any drug name (not limited to the "
+        "pre-loaded VIOXX/BAYCOL/AVANDIA benchmarks), builds a real 2x2 contingency table from the "
+        "live counts, and computes PRR/Chi-Square using the same calculate_prr/classify_signal engine "
+        "as the rest of the platform. Degrades gracefully (success=false with an error message) if "
+        "openFDA is unreachable or the drug/event pair has too few reports — never a 500."
+    ),
+)
+async def live_openfda_lookup(payload: LiveLookupRequest = Body(...)) -> Dict[str, Any]:
+    """Live PRR signal lookup against the real openFDA API for an arbitrary drug."""
+    return lookup_live_signal(drug_name=payload.drug_name, event_term=payload.event_term)
 

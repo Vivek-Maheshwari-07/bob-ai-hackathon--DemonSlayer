@@ -15,6 +15,7 @@ import numpy as np
 import pandas as pd
 from sklearn.cluster import KMeans
 from sklearn.decomposition import PCA
+from sklearn.metrics import silhouette_score
 from sklearn.preprocessing import StandardScaler
 
 from app.m1_faers.faers_ingest import (
@@ -145,6 +146,16 @@ def compute_adverse_event_clusters(
 
     # Merge
     merged = pd.merge(signals_ct, grouped, on=["drug_name", "event_term"], how="left")
+    # A (drug, event) pair with no matching patient-level rows gets fixed default
+    # severity/demographic values below (see fillna calls) rather than real FAERS
+    # data — flag those pairs before the fillna so downstream consumers can tell
+    # imputed points apart from real ones.
+    merged["is_imputed"] = (
+        merged["serious_rate"].isna()
+        | merged["death_rate"].isna()
+        | merged["hospitalization_rate"].isna()
+        | merged["female_ratio"].isna()
+    )
     merged["serious_rate"] = merged["serious_rate"].fillna(0.5)
     merged["death_rate"] = merged["death_rate"].fillna(0.05)
     merged["hospitalization_rate"] = merged["hospitalization_rate"].fillna(0.4)
@@ -206,6 +217,14 @@ def compute_adverse_event_clusters(
     kmeans = KMeans(n_clusters=actual_k, random_state=42, n_init=10)
     cluster_labels = kmeans.fit_predict(X_scaled)
     merged["cluster_id"] = cluster_labels
+
+    # Silhouette score: how well-separated the fitted clusters are (-1..1, higher
+    # is better). Diagnostic only — does not affect k or the clustering itself.
+    try:
+        silhouette = round(float(silhouette_score(X_scaled, cluster_labels)), 3)
+    except ValueError:
+        # Not computable when fewer than 2 distinct labels resulted from the fit.
+        silhouette = None
 
     # 5. Dimensionality Reduction: PCA 2D for interactive plotting
     pca = PCA(n_components=2, random_state=42)
@@ -272,7 +291,12 @@ def compute_adverse_event_clusters(
             "serious_rate": round(float(r["serious_rate"]) * 100, 1),
             "mean_age": round(float(r["mean_age"]), 1),
             "signal_status": str(r["signal_status"]),
+            "is_imputed": bool(r["is_imputed"]),
         })
+
+    imputed_pairs_count = int(merged["is_imputed"].sum())
+    total_pairs = len(merged)
+    imputed_pairs_pct = round(100.0 * imputed_pairs_count / total_pairs, 1) if total_pairs > 0 else 0.0
 
     response = {
         "cache_key": cache_key,
@@ -283,8 +307,11 @@ def compute_adverse_event_clusters(
             "normalization": "StandardScaler",
             "dimensionality_reduction": "PCA (2-Component Projection)",
             "variance_explained_ratio": [round(float(v), 3) for v in pca.explained_variance_ratio_],
+            "silhouette_score": silhouette,
             "total_drug_event_pairs": len(points),
             "n_clusters": len(clusters_info),
+            "imputed_pairs_count": imputed_pairs_count,
+            "imputed_pairs_pct": imputed_pairs_pct,
             "features_used": [
                 "log(PRR)",
                 "log(Cases)",
