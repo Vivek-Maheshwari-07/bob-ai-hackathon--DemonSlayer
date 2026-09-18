@@ -4,14 +4,8 @@ Aggregates evaluations, scoring, priority gaps, and actionable
 remediation recommendations into a structured, frontend-friendly report.
 """
 
-import os
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
-
-try:
-    import httpx as _httpx
-except ImportError:
-    _httpx = None
 
 from app.m4_rag.completeness import CompletenessScorer
 from app.m4_rag.schema import (
@@ -120,9 +114,18 @@ class ReportGenerator:
     ) -> List[str]:
         """Synthesizes prioritized remediation steps.
 
-        Attempts a live Gemini call to narrate the ACTUAL priority_gaps list already computed
-        (grounded — never lets Bob invent gaps, only explains the real ones computed above).
-        Falls back to the deterministic bullet list if the API is unavailable.
+        Uses the Gemini-grounded `reasoning_insights` already computed once by
+        the pipeline via `GeminiGroundedReasoner` (grounded — never lets Bob
+        invent gaps, only explains the real ones computed above). Falls back
+        to the deterministic bullet list if reasoning was disabled or Gemini
+        was unavailable/failed (in which case `reasoning_insights` is already
+        the reasoner's own deterministic fallback, or None/empty).
+
+        Note: this used to also make a second, independent raw Gemini call
+        here (`_gemini_narrate_gaps`), duplicating what the reasoner already
+        does — that doubled LLM latency/cost per request for no benefit and
+        has been removed; `reasoning_insights` is the single source of
+        LLM-grounded narrative now.
         """
         actions: List[str] = []
 
@@ -131,13 +134,7 @@ class ReportGenerator:
                 if insight and insight.strip():
                     actions.append(insight.strip())
 
-        # Attempt live Gemini narrative for the computed gaps (grounded, not hallucinated)
-        gemini_narrative = self._gemini_narrate_gaps(priority_gaps)
-        if gemini_narrative:
-            actions.extend(gemini_narrative)
-
         if not actions:
-            # Deterministic fallback — always runs if Gemini is unavailable
             actions = self._deterministic_recommendations(priority_gaps, module_scores)
 
         return actions
@@ -177,61 +174,3 @@ class ReportGenerator:
             actions.append("All core ICH M4 sections are verified and complete. Ready for formal submission readiness audit.")
 
         return actions
-
-    def _gemini_narrate_gaps(self, priority_gaps: List[GapItem]) -> List[str]:
-        """Uses Gemini 2.5 Flash to narrate ONLY the actual computed gaps — never invents new ones.
-
-        Falls back to [] if the API key is unset or the call fails (caller uses deterministic fallback).
-        """
-        if _httpx is None:
-            return []
-        gemini_key = os.getenv("GEMINI_API_KEY", "")
-        if not gemini_key.strip():
-            return []
-        if not priority_gaps:
-            return []
-
-        # Build a grounded context block from the ACTUAL computed gaps
-        gap_lines = []
-        for gap in priority_gaps[:8]:
-            gap_lines.append(
-                f"- [{gap.criticality.value}] Section {gap.section_id} ({gap.title}) "
-                f"in {gap.module_name}: status={gap.status.value}. ICH ref: {gap.source_reference}."
-            )
-        gaps_block = "\n".join(gap_lines)
-
-        prompt = (
-            f"You are a Senior Regulatory Affairs Specialist reviewing an ICH M4 CTD dossier gap analysis.\n\n"
-            f"The following gaps were COMPUTED by the automated ICH M4 RAG engine (ground truth — do not alter or invent gaps):\n"
-            f"{gaps_block}\n\n"
-            f"STRICT INSTRUCTIONS:\n"
-            f"1. Write 2–4 concise, actionable remediation recommendations BASED SOLELY on the gaps listed above.\n"
-            f"2. DO NOT invent section numbers, regulatory citations, or gaps not present in the list above.\n"
-            f"3. Each recommendation must start with an action verb and reference specific section IDs from the list.\n"
-            f"4. Return plain text, one recommendation per line, no markdown headers."
-        )
-
-        try:
-            url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={gemini_key}"
-            payload = {
-                "contents": [{"parts": [{"text": prompt}]}],
-                "generationConfig": {"temperature": 0.0, "maxOutputTokens": 512},
-            }
-            with _httpx.Client(timeout=15.0) as client:
-                resp = client.post(url, json=payload)
-                if resp.status_code == 200:
-                    data = resp.json()
-                    candidates = data.get("candidates", [])
-                    if candidates:
-                        text = candidates[0].get("content", {}).get("parts", [])[0].get("text", "")
-                        if text:
-                            lines = [
-                                line.lstrip("*-•0123456789. ").strip()
-                                for line in text.strip().splitlines()
-                                if line.strip()
-                            ]
-                            return [f"[BOB RECOMMENDATION] {l}" for l in lines[:4] if l]
-        except Exception:
-            pass
-
-        return []

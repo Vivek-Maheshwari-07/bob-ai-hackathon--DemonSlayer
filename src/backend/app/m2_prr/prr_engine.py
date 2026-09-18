@@ -80,14 +80,21 @@ def calculate_prr(
     # Log PRR
     log_prr = np.log(prr) if prr > 0 else float("-inf")
 
-    # 95% CI using log-normal approximation (standard method)
-    se_log_prr = np.sqrt(1/a - 1/n_drug_total + 1/c - 1/n_event_total) if (a > 0 and c > 0) else float("inf")
+    # 95% CI using log-normal approximation (standard method).
+    # Evans et al. log-PRR variance: 1/a - 1/(a+b) + 1/c - 1/(c+d), where
+    # (a+b) = n_drug_total and (c+d) = n_total - n_drug_total (the non-drug
+    # column total) — NOT n_event_total (the event row total), which the
+    # two quantities are easy to confuse but are numerically different.
+    c_plus_d = n_total - n_drug_total
+    se_log_prr = (
+        np.sqrt(1/a - 1/n_drug_total + 1/c - 1/c_plus_d)
+        if (a > 0 and c > 0 and c_plus_d > 0) else float("inf")
+    )
     lower_ci = np.exp(log_prr - 1.96 * se_log_prr) if np.isfinite(se_log_prr) else 0.0
     upper_ci = np.exp(log_prr + 1.96 * se_log_prr) if np.isfinite(se_log_prr) else float("inf")
 
     # Chi-square test (2x2 contingency table)
     try:
-        expected_a = (n_drug_total * n_event_total) / n_total
         observed = [[a, b], [c, d]]
         chi2, p_val, _, _ = stats.chi2_contingency(observed, correction=False)
     except Exception:

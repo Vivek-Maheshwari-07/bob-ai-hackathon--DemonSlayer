@@ -135,5 +135,5 @@ $$\text{Readiness Score} = \left( \frac{\text{Validated Sections Count}}{\text{T
 ## 8. Synthetic Benchmark Dossier Disclosure
 
 To maintain absolute regulatory transparency:
-- **Synthetic Test Dossier**: The candidate dossier presets (including BOB-701 Oncology IND outline and Vioxx NDA 21-042 outline) and the test benchmark dataset used for evaluating the completeness scoring engine consist of **104 checkable ICH M4 entries** (57 PRESENT, 47 MISSING; yielding a raw completeness score of 54.81%, displayed and rounded to 55%).
+- **Synthetic Test Dossier**: The candidate dossier presets (Vioxx NDA 21-042, BOB-701 Oncology IND, and Phase 1 IND EXP-101) are intentionally partial outlines checked against the full ~40-section ICH M4 knowledge base, so each yields a different, non-100% readiness score — this is by design, to exercise the gap-detection engine rather than to demonstrate a "complete" dossier.
 - **Verification Purpose**: These datasets are strictly synthetic benchmark dossiers engineered against published ICH M4 CTD specifications to validate the gap detection engine, regression tests, and PDF parser. They do not represent confidential or actual sponsor submission files.

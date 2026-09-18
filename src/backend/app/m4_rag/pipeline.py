@@ -96,11 +96,19 @@ class CTDRagCheckerPipeline:
                 g for g in gap_items
                 if g.status.value != "PRESENT" and g.criticality.value in ("CRITICAL", "MAJOR")
             ]
-            reasoning_insights = self.reasoner.generate_reasoning_insights(
-                priority_gaps=priority_gaps,
-                overall_completeness=overall_score,
-                submission_title=normalized_outline.submission_title or "Candidate CTD Dossier",
-            )
+            try:
+                reasoning_insights = self.reasoner.generate_reasoning_insights(
+                    priority_gaps=priority_gaps,
+                    overall_completeness=overall_score,
+                    submission_title=normalized_outline.submission_title or "Candidate CTD Dossier",
+                )
+            except Exception:
+                # The reasoner already fails soft to its own deterministic
+                # fallback internally; this outer guard is defense-in-depth
+                # so an unexpected error there degrades to the report
+                # generator's own deterministic recommendations instead of
+                # failing the whole request.
+                reasoning_insights = None
 
         # Step 5: Assemble actionable gap report
         report = self.report_generator.generate_report(
@@ -117,7 +125,7 @@ class CTDRagCheckerPipeline:
         pdf_source: Union[str, bytes, BinaryIO],
         submission_title: str = "Candidate CTD Dossier (PDF)",
         enable_reasoner: bool = True,
-        max_pages: Optional[int] = 100,
+        max_pages: Optional[int] = 300,
     ) -> GapReportOutput:
         """Executes full RAG gap evaluation from a raw PDF document."""
         outline = CTDPDFExtractor.extract_outline_from_pdf(
@@ -141,7 +149,7 @@ def check_ctd_pdf(
     pdf_source: Union[str, bytes, BinaryIO],
     submission_title: str = "Candidate CTD Dossier (PDF)",
     enable_reasoner: bool = True,
-    max_pages: Optional[int] = 100,
+    max_pages: Optional[int] = 300,
 ) -> GapReportOutput:
     """Convenience functional wrapper for CTD PDF readiness checking."""
     pipeline = CTDRagCheckerPipeline()

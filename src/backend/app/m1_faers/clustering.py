@@ -110,12 +110,12 @@ def compute_adverse_event_clusters(
     """
     global _cached_clustering_result
 
-    cache_key = f"{n_clusters}_{drug_filter or 'ALL'}"
-    if not force_refresh and _cached_clustering_result is not None and _cached_clustering_result.get("cache_key") == cache_key:
-        return _cached_clustering_result
-
     if data_dir is None:
         data_dir = DATA_DIR
+
+    cache_key = f"{n_clusters}_{drug_filter or 'ALL'}_{data_dir}"
+    if not force_refresh and _cached_clustering_result is not None and _cached_clustering_result.get("cache_key") == cache_key:
+        return _cached_clustering_result
 
     # 1. Load patient-level FAERS dataset for severity and demographic features
     raw_df = load_real_faers_data(data_dir=data_dir)
@@ -155,6 +155,7 @@ def compute_adverse_event_clusters(
         | merged["death_rate"].isna()
         | merged["hospitalization_rate"].isna()
         | merged["female_ratio"].isna()
+        | merged["mean_age"].isna()
     )
     merged["serious_rate"] = merged["serious_rate"].fillna(0.5)
     merged["death_rate"] = merged["death_rate"].fillna(0.05)
@@ -172,6 +173,17 @@ def compute_adverse_event_clusters(
             "clusters": [],
             "points": [],
             "metadata": {"error": "No records found matching criteria"},
+        }
+
+    if len(merged) < 2:
+        # KMeans/PCA require at least 2 samples; a single-row result (e.g. an
+        # overly narrow drug_filter) can't be clustered — degrade gracefully
+        # instead of letting sklearn raise.
+        return {
+            "cache_key": cache_key,
+            "clusters": [],
+            "points": [],
+            "metadata": {"error": "Too few drug-event pairs to cluster (minimum 2 required)"},
         }
 
     # Compute PRR and Chi-square for every row

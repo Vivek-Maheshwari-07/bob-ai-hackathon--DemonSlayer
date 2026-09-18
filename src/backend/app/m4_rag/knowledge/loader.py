@@ -39,18 +39,24 @@ class KnowledgeBaseLoader:
         for m in range(1, 6):
             self._by_module[m].clear()
 
-        for item in raw_data:
-            req = ICHSectionRequirement(
-                section_id=item["section_id"].strip(),
-                module_id=int(item["module_id"]),
-                module_name=item["module_name"].strip(),
-                title=item["title"].strip(),
-                requirement_text=item["requirement_text"].strip(),
-                criticality=CriticalityLevel(item.get("criticality", "MAJOR")),
-                weight=float(item.get("weight", 1.0)),
-                source=item.get("source", "ICH M4"),
-                keywords=item.get("keywords", []),
-            )
+        for idx, item in enumerate(raw_data):
+            try:
+                req = ICHSectionRequirement(
+                    section_id=item["section_id"].strip(),
+                    module_id=int(item["module_id"]),
+                    module_name=item["module_name"].strip(),
+                    title=item["title"].strip(),
+                    requirement_text=item["requirement_text"].strip(),
+                    criticality=CriticalityLevel(item.get("criticality", "MAJOR")),
+                    weight=float(item.get("weight", 1.0)),
+                    source=item.get("source", "ICH M4"),
+                    keywords=item.get("keywords", []),
+                )
+            except (KeyError, ValueError, TypeError) as e:
+                raise ValueError(
+                    f"Malformed ICH M4 knowledge base entry at index {idx} "
+                    f"(section_id={item.get('section_id', '?')!r}) in {self.json_path}: {e}"
+                ) from e
             self._requirements.append(req)
             self._by_id[req.section_id.upper()] = req
             self._by_module[req.module_id].append(req)

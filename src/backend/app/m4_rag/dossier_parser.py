@@ -12,9 +12,12 @@ from app.m4_rag.schema import DossierOutlineInput, DossierSectionInput
 class DossierParser:
     """Robust parser and normalizer for CTD dossier inputs."""
 
-    # Regex patterns to normalize section IDs
+    # Regex patterns to normalize section IDs. The lookahead requires a digit
+    # right after the prefix run, so free text that merely starts with "M"/
+    # "Sec"/"Mod" (e.g. "Manufacturing", "Second Quality Attribute") is left
+    # untouched instead of having its first letters silently stripped.
     PREFIX_REGEX = re.compile(
-        r"^(?:module\s*|mod\s*|m\s*|sec(?:tion)?\.?\s*|#\s*)+",
+        r"^(?:module\s*|mod\s*|m\s*|sec(?:tion)?\.?\s*|#\s*)+(?=\d)",
         re.IGNORECASE,
     )
 

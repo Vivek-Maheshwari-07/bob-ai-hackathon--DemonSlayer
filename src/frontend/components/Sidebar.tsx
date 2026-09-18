@@ -70,7 +70,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
           <button
             onClick={onCloseMobile}
             className="lg:hidden p-1.5 rounded text-slate-500 hover:text-slate-800 hover:bg-slate-100"
-            aria-label="Close sidebar"
+            aria-label="Close sidebar menu"
           >
             ✕
           </button>

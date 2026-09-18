@@ -1,11 +1,9 @@
 "use client";
 
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import {
   LineChart,
   Line,
-  BarChart,
-  Bar,
   ScatterChart,
   Scatter,
   XAxis,
@@ -13,7 +11,6 @@ import {
   ZAxis,
   CartesianGrid,
   Tooltip,
-  Legend,
   ResponsiveContainer,
   ReferenceLine,
   Cell,
@@ -48,6 +45,7 @@ import { LoadingState } from "../components/LoadingState";
 import { ErrorState } from "../components/ErrorState";
 import { EmptyState } from "../components/EmptyState";
 import { BobCopilotDrawer } from "../components/BobCopilotDrawer";
+import { SignalBubbleChart } from "../components/SignalBubbleChart";
 
 
 // ─── Types ─────────────────────────────────────────────────────────────────
@@ -322,6 +320,9 @@ function DashboardView({
 
   useEffect(() => {
     if (!backendOnline) return;
+    // Guards against a stale response overwriting a newer one if this effect
+    // re-fires (e.g. backendOnline flaps) before the first request resolves.
+    let cancelled = false;
     fetchM4Presets()
       .then((res) => {
         const p = (res?.presets || []).find((x: any) => x.id === "VIOXX_NDA_21042") || (res?.presets || [])[0];
@@ -329,13 +330,16 @@ function DashboardView({
         return checkCTDDossier(p.outline);
       })
       .then((report: any) => {
-        if (!report) return;
+        if (cancelled || !report) return;
         setReadinessScore(`${Number(report.overall_completeness).toFixed(1)}%`);
         setCriticalGapsCount(String(report.critical_gaps_count ?? "—"));
       })
       .catch(() => {
         // silently fall back to "—" — dashboard is a preview, not the primary source
       });
+    return () => {
+      cancelled = true;
+    };
   }, [backendOnline]);
 
   const totalPairs =
@@ -481,93 +485,7 @@ function DashboardView({
             />
           )
         ) : (
-          <div className="h-80 w-full pt-2">
-            <ResponsiveContainer width="100%" height="100%">
-              <ScatterChart margin={{ top: 15, right: 30, bottom: 20, left: 10 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
-                <XAxis
-                  type="number"
-                  dataKey="prr"
-                  name="PRR"
-                  unit="x"
-                  stroke="#64748b"
-                  tick={{ fontSize: 11, fill: "#64748b" }}
-                  label={{
-                    value: "Proportional Reporting Ratio (PRR) →",
-                    position: "insideBottom",
-                    offset: -12,
-                    fontSize: 11,
-                    fill: "#475569",
-                  }}
-                />
-                <YAxis
-                  type="number"
-                  dataKey="cases"
-                  name="Cases"
-                  stroke="#64748b"
-                  tick={{ fontSize: 11, fill: "#64748b" }}
-                  label={{
-                    value: "Case Count (a)",
-                    angle: -90,
-                    position: "insideLeft",
-                    fontSize: 11,
-                    fill: "#475569",
-                  }}
-                />
-                <ZAxis range={[60, 280]} />
-                <Tooltip
-                  cursor={{ strokeDasharray: "3 3" }}
-                  content={({ active, payload }) => {
-                    if (active && payload && payload.length) {
-                      const data = payload[0].payload;
-                      return (
-                        <div className="p-3 bg-white border border-slate-300 rounded shadow-md text-xs space-y-1">
-                          <div className="font-bold text-slate-900 border-b border-slate-100 pb-1">
-                            {data.drug} — {data.event}
-                          </div>
-                          <div className="text-rose-600 font-mono font-bold">
-                            PRR: {data.prr}x
-                          </div>
-                          <div className="text-slate-600 font-mono">
-                            Case Count ($a$): {data.cases} reports
-                          </div>
-                          <div className="text-blue-700 font-mono">
-                            Chi-Square ($\chi^2$): {data.chi2}
-                          </div>
-                          <div className="pt-1">
-                            <StatusBadge label={data.status} size="sm" />
-                          </div>
-                        </div>
-                      );
-                    }
-                    return null;
-                  }}
-                />
-                <ReferenceLine
-                  x={2.0}
-                  stroke="#ef4444"
-                  strokeDasharray="4 4"
-                  label={{
-                    value: "Critical Threshold (PRR = 2.0)",
-                    fill: "#dc2626",
-                    fontSize: 11,
-                    position: "top",
-                  }}
-                />
-                <Scatter name="Safety Signals" data={bubbleData}>
-                  {bubbleData.map((entry, index) => {
-                    const fillColor =
-                      entry.status === "SIGNAL"
-                        ? "#dc2626"
-                        : entry.status === "WEAK_SIGNAL"
-                        ? "#f59e0b"
-                        : "#94a3b8";
-                    return <Cell key={`cell-${index}`} fill={fillColor} fillOpacity={0.8} />;
-                  })}
-                </Scatter>
-              </ScatterChart>
-            </ResponsiveContainer>
-          </div>
+          <SignalBubbleChart data={bubbleData} />
         )}
       </div>
 
@@ -693,16 +611,26 @@ function SignalDetectionView({
   const [clusterDrugFilter, setClusterDrugFilter] = useState<string>("ALL");
   const [activeClusterId, setActiveClusterId] = useState<number | null>(null);
 
+  // Tracks the most recently issued cluster request so a slower, stale
+  // response (e.g. k=3 resolving after a later k=5 click) can't overwrite
+  // the result of a request issued after it.
+  const clusterRequestIdRef = useRef(0);
+
   const loadClusters = useCallback(async (k: number, drug: string) => {
+    const requestId = ++clusterRequestIdRef.current;
     setClusteringLoading(true);
     setClusteringError(null);
     try {
       const data = await fetchAdverseEventClusters(k, drug);
+      if (clusterRequestIdRef.current !== requestId) return;
       setClusteringData(data);
     } catch (err: any) {
+      if (clusterRequestIdRef.current !== requestId) return;
       setClusteringError(err?.message || "Failed to compute adverse event clusters");
     } finally {
-      setClusteringLoading(false);
+      if (clusterRequestIdRef.current === requestId) {
+        setClusteringLoading(false);
+      }
     }
   }, []);
 
@@ -1241,95 +1169,7 @@ function SignalDetectionView({
         )}
 
         {/* BUBBLE CHART VIEW CONTENT */}
-        {visualMode === "bubble" && (
-          <div className="h-80 w-full pt-2">
-            <ResponsiveContainer width="100%" height="100%">
-              <ScatterChart margin={{ top: 15, right: 30, bottom: 20, left: 10 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
-                <XAxis
-                  type="number"
-                  dataKey="prr"
-                  name="PRR"
-                  unit="x"
-                  stroke="#64748b"
-                  tick={{ fontSize: 11, fill: "#64748b" }}
-                  label={{
-                    value: "Proportional Reporting Ratio (PRR) →",
-                    position: "insideBottom",
-                    offset: -12,
-                    fontSize: 11,
-                    fill: "#475569",
-                  }}
-                />
-                <YAxis
-                  type="number"
-                  dataKey="cases"
-                  name="Cases"
-                  stroke="#64748b"
-                  tick={{ fontSize: 11, fill: "#64748b" }}
-                  label={{
-                    value: "Case Count (a)",
-                    angle: -90,
-                    position: "insideLeft",
-                    fontSize: 11,
-                    fill: "#475569",
-                  }}
-                />
-                <ZAxis range={[60, 280]} />
-                <Tooltip
-                  cursor={{ strokeDasharray: "3 3" }}
-                  content={({ active, payload }) => {
-                    if (active && payload && payload.length) {
-                      const data = payload[0].payload;
-                      return (
-                        <div className="p-3 bg-white border border-slate-300 rounded shadow-md text-xs space-y-1">
-                          <div className="font-bold text-slate-900 border-b border-slate-100 pb-1">
-                            {data.drug} — {data.event}
-                          </div>
-                          <div className="text-rose-600 font-mono font-bold">
-                            PRR: {data.prr}x
-                          </div>
-                          <div className="text-slate-600 font-mono">
-                            Case Count ($a$): {data.cases} reports
-                          </div>
-                          <div className="text-blue-700 font-mono">
-                            Chi-Square ($\chi^2$): {data.chi2}
-                          </div>
-                          <div className="pt-1">
-                            <StatusBadge label={data.status} size="sm" />
-                          </div>
-                        </div>
-                      );
-                    }
-                    return null;
-                  }}
-                />
-                <ReferenceLine
-                  x={2.0}
-                  stroke="#ef4444"
-                  strokeDasharray="4 4"
-                  label={{
-                    value: "Critical Threshold (PRR = 2.0)",
-                    fill: "#dc2626",
-                    fontSize: 11,
-                    position: "top",
-                  }}
-                />
-                <Scatter name="Safety Signals" data={bubbleData}>
-                  {bubbleData.map((entry, index) => {
-                    const fillColor =
-                      entry.status === "SIGNAL"
-                        ? "#dc2626"
-                        : entry.status === "WEAK_SIGNAL"
-                        ? "#f59e0b"
-                        : "#94a3b8";
-                    return <Cell key={`cell-${index}`} fill={fillColor} fillOpacity={0.8} />;
-                  })}
-                </Scatter>
-              </ScatterChart>
-            </ResponsiveContainer>
-          </div>
-        )}
+        {visualMode === "bubble" && <SignalBubbleChart data={bubbleData} />}
       </div>
 
       {/* LIVE openFDA API Lookup — arbitrary drug, not limited to the 3 pre-loaded benchmarks */}
@@ -1761,31 +1601,29 @@ function SignalDetectionView({
                     <td className="py-2 px-3 text-right">
                       <button
                         onClick={() => {
+                          // Use nullish checks (not truthy checks) so a legitimately
+                          // 0-valued margin isn't mistaken for "missing" and replaced
+                          // with a fabricated denominator.
+                          const nDrugTotal = sig.n_drug_total ?? sig.n_drug_event + 10000;
+                          const nEventTotal = sig.n_event_total ?? sig.n_drug_event + 500;
+                          const nTotal = sig.n_total ?? nDrugTotal + nEventTotal + 1000000;
+                          const bVal = nDrugTotal - sig.n_drug_event;
+                          const cVal = nEventTotal - sig.n_drug_event;
+                          const dVal = nTotal - nDrugTotal - cVal;
+
                           setCalcDrug(sig.drug_name);
                           setCalcEvent(sig.event_term);
                           setA(sig.n_drug_event);
-                          setB(sig.n_drug_total ? sig.n_drug_total - sig.n_drug_event : 10000);
-                          setC(sig.n_event_total ? sig.n_event_total - sig.n_drug_event : 500);
-                          setD(
-                            sig.n_total
-                              ? sig.n_total -
-                                (sig.n_drug_total || 10000) -
-                                (sig.n_event_total || 500) +
-                                sig.n_drug_event
-                              : 1000000
-                          );
+                          setB(bVal);
+                          setC(cVal);
+                          setD(dVal);
                           runCustomCalculation({
                             drug_name: sig.drug_name,
                             event_term: sig.event_term,
                             a: sig.n_drug_event,
-                            b: sig.n_drug_total ? sig.n_drug_total - sig.n_drug_event : 10000,
-                            c: sig.n_event_total ? sig.n_event_total - sig.n_drug_event : 500,
-                            d: sig.n_total
-                              ? sig.n_total -
-                                (sig.n_drug_total || 10000) -
-                                (sig.n_event_total || 500) +
-                                sig.n_drug_event
-                              : 1000000,
+                            b: bVal,
+                            c: cVal,
+                            d: dVal,
                           });
                         }}
                         className="px-2 py-1 rounded bg-slate-100 hover:bg-blue-50 text-blue-700 text-[11px] font-semibold border border-slate-200 transition"

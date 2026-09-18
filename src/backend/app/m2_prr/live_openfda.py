@@ -8,6 +8,7 @@ counts — no PRR/chi-square math is duplicated here.
 """
 
 import re
+import time
 from datetime import datetime, timezone
 from typing import Any, Dict, Optional
 
@@ -20,6 +21,13 @@ from app.m2_prr.prr_engine import calculate_prr, classify_signal, DEFAULT_MIN_CA
 
 OPENFDA_EVENT_URL = "https://api.fda.gov/drug/event.json"
 OPENFDA_TIMEOUT_SECONDS = 8.0
+
+# The unfiltered grand-total report count changes extremely slowly (it's the
+# whole FAERS database), so caching it avoids one redundant outbound openFDA
+# call on every single live lookup.
+_GRAND_TOTAL_CACHE_TTL_SECONDS = 3600
+_cached_grand_total: Optional[int] = None
+_cached_grand_total_at: float = 0.0
 
 # openFDA's search syntax is Lucene-like; strip characters that could break out
 # of the quoted field or inject query operators (this is a public, read-only
@@ -43,6 +51,19 @@ def _openfda_count(client: "httpx.Client", search_query: Optional[str] = None) -
     resp.raise_for_status()
     data = resp.json()
     return int(data.get("meta", {}).get("results", {}).get("total", 0))
+
+
+def _openfda_grand_total(client: "httpx.Client") -> int:
+    """Returns the unfiltered FAERS report grand total, cached for an hour."""
+    global _cached_grand_total, _cached_grand_total_at
+    now = time.monotonic()
+    if _cached_grand_total is not None and (now - _cached_grand_total_at) < _GRAND_TOTAL_CACHE_TTL_SECONDS:
+        return _cached_grand_total
+
+    total = _openfda_count(client)
+    _cached_grand_total = total
+    _cached_grand_total_at = now
+    return total
 
 
 def _openfda_top_event_term(client: "httpx.Client", drug_query: str) -> Optional[str]:
@@ -116,7 +137,7 @@ def lookup_live_signal(
             event_query = f'patient.reaction.reactionmeddrapt:"{resolved_event}"'
             n_event_total = _openfda_count(client, event_query)
             n_drug_event = _openfda_count(client, f"{drug_query} AND {event_query}")
-            n_total = _openfda_count(client)
+            n_total = _openfda_grand_total(client)
     except httpx.TimeoutException:
         return {**base, "success": False, "error": "openFDA API request timed out. Please try again."}
     except httpx.HTTPError as e:

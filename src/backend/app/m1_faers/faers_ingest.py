@@ -9,7 +9,6 @@ import os
 import re
 from typing import Any, Dict, List, Optional, Tuple
 import pandas as pd
-import numpy as np
 
 
 DATA_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "data"))
