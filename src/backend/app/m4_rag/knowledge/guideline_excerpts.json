@@ -1,0 +1,192 @@
+{
+  "_note": "Guideline-structure excerpts distilled from the ICH guideline sections discussed and established in this project's conversation history — not verbatim guideline text, and not a substitute for the actual ICH texts. Entries marked \"placeholder\" cover guidance areas that were only referenced tangentially (e.g. Q4B pharmacopoeial interchangeability) and deliberately contain no invented detail.",
+  "excerpts": [
+    {
+      "section_id": "5.3.5",
+      "guideline_name": "ICH E3 / E1 / E5(R1) / E6(R3) / E8(R1)",
+      "citation": "ICH E3 §9.1-9.7, §10.1, §11.2, §12.2-12.3; ICH E1; ICH E5(R1); ICH E6(R3); ICH E8(R1)",
+      "excerpt_text": "A clinical study report under ICH E3 must describe the investigational plan (§9.1-9.7), including the overall study design and plan, study population selection criteria, treatments administered, and the efficacy and safety variables assessed, together with the statistical/analytical plan. Patient disposition (§10.1) must be reported: numbers enrolled, randomized, treated, completed, and discontinued, with reasons for discontinuation. Demographic and baseline characteristics (§11.2) — age, sex, race, and relevant baseline disease characteristics — must be tabulated by treatment group. Safety reporting (§12.2-12.3) requires the extent of exposure, and adverse event/serious adverse event data including deaths, with narratives for significant events. ICH E1 sets population-exposure floors for a long-term-use safety database: a minimum of 300-600 patients with at least 6 months of exposure, a minimum of about 100 patients with at least 12 months of exposure, and approximately 1,500 total patients exposed overall. ICH E5(R1) addresses ethnic factors and bridging data when extrapolating foreign clinical data to a new region. ICH E6(R3) requires demonstrated adherence to the protocol and identification of critical-to-quality factors. ICH E8(R1) requires clear description of the study population, the control group and its rationale, and the response variables measured.",
+      "key_requirements": [
+        "Study design and investigational plan described (E3 §9.1-9.7)",
+        "Patient disposition reported: enrolled/completed/discontinued with reasons (E3 §10.1)",
+        "Demographic and baseline characteristics tabulated by treatment group (E3 §11.2)",
+        "Safety data reported: exposure extent, AEs/SAEs, deaths (E3 §12.2-12.3)",
+        "Population exposure meets E1 floors (300-600 pts/6mo, 100 pts/12mo, ~1500 total) where applicable",
+        "Control group and response variables defined (E8(R1))"
+      ]
+    },
+    {
+      "section_id": "2.7",
+      "guideline_name": "ICH E3",
+      "citation": "ICH E3 §9.5.4, §11.4, §12.2-12.3",
+      "excerpt_text": "The Summary of Clinical Efficacy and Summary of Clinical Safety (CTD 2.7) integrate findings across the clinical program rather than restating any single study report. Clinical pharmacology findings (§9.5.4) — including relevant PK/PD results — must be summarized in support of the overall benefit-risk assessment. The efficacy summary (§11.4) must integrate results across all pertinent studies for the claimed indication, not merely repeat a single pivotal trial's results, and should reconcile any inconsistent findings across studies. The safety summary (§12.2-12.3) must integrate adverse event and serious adverse event experience across the full development program, including exposure extent, common and serious adverse events, and any notable safety signals, providing an overall estimate of drug-attributable risk.",
+      "key_requirements": [
+        "Clinical pharmacology (PK/PD) findings summarized (E3 §9.5.4)",
+        "Efficacy integrated across studies, not single-study restatement (E3 §11.4)",
+        "Safety integrated across the program: exposure, AEs, SAEs (E3 §12.2-12.3)",
+        "Inconsistent findings across studies reconciled/discussed"
+      ]
+    },
+    {
+      "section_id": "5.3.3",
+      "guideline_name": "ICH E9 / E4",
+      "citation": "ICH E9 §5.2.1-5.2.2, §5.5; ICH E4",
+      "excerpt_text": "ICH E9 requires that the analysis set(s) used for a pharmacokinetic/pharmacodynamic or efficacy analysis be explicitly defined — typically the Full Analysis Set and/or Per-Protocol Set (§5.2.1-5.2.2) — with the rationale for the chosen approach and how it addresses departures from the protocol (e.g. exclusions, missing data). For treatment comparisons, §5.5 requires that confidence intervals and/or hypothesis tests be reported with a clearly stated null hypothesis and pre-specified significance/decision criteria, not simply point estimates. ICH E4 requires that dose-response relationships be characterized through appropriately designed studies (e.g. parallel dose-response, crossover, or forced-titration designs) rather than assumed from a single fixed-dose comparison.",
+      "key_requirements": [
+        "Analysis set (FAS vs PPS) explicitly defined and justified (E9 §5.2.1-5.2.2)",
+        "Confidence intervals / hypothesis tests reported with stated criteria (E9 §5.5)",
+        "Dose-response study design described where applicable (E4)"
+      ]
+    },
+    {
+      "section_id": "5.3.4",
+      "guideline_name": "ICH E9 / E4",
+      "citation": "ICH E9 §2.2.2, §3.3; ICH E4",
+      "excerpt_text": "ICH E9 requires the primary and secondary variables of a PK/PD or efficacy analysis to be pre-specified and clearly distinguished (§2.2.2), so that exploratory findings are not presented as confirmatory ones. §3.3 requires the type of comparison being made — superiority, equivalence, or non-inferiority — to be explicitly stated, since this determines both the study design and the statistical margin used. ICH E4 requires concentration-response and dose-response data to be generated and analyzed to characterize the exposure-response relationship supporting dose selection, rather than relying solely on a single studied dose.",
+      "key_requirements": [
+        "Primary/secondary variables pre-specified and distinguished (E9 §2.2.2)",
+        "Comparison type (superiority/equivalence/non-inferiority) explicitly stated (E9 §3.3)",
+        "Concentration-response / dose-response relationship characterized (E4)"
+      ]
+    },
+    {
+      "section_id": "5.3.6",
+      "guideline_name": "ICH E2A",
+      "citation": "ICH E2A (expedited reporting standard); CIOMS-I minimum data elements",
+      "excerpt_text": "ICH E2A establishes the standard for expedited safety reporting: an unexpected, serious, drug-related adverse event must be reported to regulatory authorities within 15 calendar days of the sponsor becoming aware of it. A postmarketing/periodic safety report referencing individual case safety reports must therefore demonstrate reporting timelines consistent with this 15-day standard where expedited cases are involved. CIOMS-I sets out the minimum data elements a valid individual case safety report must contain: an identifiable patient, an identifiable reporter, a suspect drug, and an identifiable adverse event — a report missing any of these four elements is not evaluable.",
+      "key_requirements": [
+        "Expedited SAE reporting timeline consistent with the 15-calendar-day standard (E2A)",
+        "Individual case reports contain the four CIOMS-I minimum elements: patient, reporter, suspect drug, adverse event"
+      ]
+    },
+    {
+      "section_id": "5.2",
+      "guideline_name": "ICH E8(R1)",
+      "citation": "ICH E8(R1) §5.1",
+      "excerpt_text": "ICH E8(R1) §5.1 requires a clear description of the study population(s) investigated across the clinical development program. CTD Section 5.2 in turn requires a tabular listing of all clinical studies, covering studies that have been initiated, completed, or are still ongoing, so that reviewers can see the full scope of the clinical program rather than only the pivotal trials submitted in full.",
+      "key_requirements": [
+        "Study population(s) described consistent with E8(R1) §5.1",
+        "Tabular listing covers all initiated, completed, and ongoing studies"
+      ]
+    },
+    {
+      "section_id": "1.3",
+      "guideline_name": "ICH E6(R3)",
+      "citation": "ICH E6(R3) (investigator qualification / GCP training)",
+      "excerpt_text": "ICH E6(R3) requires that investigators and other experts named in a submission be appropriately qualified by education, training, and experience for the responsibilities they undertook in the study, and that Good Clinical Practice (GCP) training be documented. Section 1.3 (information about experts) must therefore substantiate these qualifications rather than simply naming individuals.",
+      "key_requirements": [
+        "Investigator/expert qualifications (education, training, experience) documented (E6(R3))",
+        "GCP training documented"
+      ]
+    },
+    {
+      "section_id": "1.4",
+      "guideline_name": "ICH E1 / E2A",
+      "citation": "ICH E1 (population exposure); ICH E2A (pharmacovigilance / expedited reporting)",
+      "excerpt_text": "A Risk Management Plan (Section 1.4) must be grounded in the actual population exposure achieved in the clinical program — assessed against the ICH E1 floors (300-600 patients/6 months, 100 patients/12 months, ~1,500 total) — since the adequacy of a safety database directly bounds what risks can be characterized versus what remain unknown at approval. The plan's pharmacovigilance and expedited-reporting commitments must be consistent with the ICH E2A standard for identifying and escalating new safety information post-approval.",
+      "key_requirements": [
+        "RMP's risk characterization grounded in actual E1 population-exposure achieved",
+        "Pharmacovigilance/expedited-reporting commitments consistent with E2A"
+      ]
+    },
+    {
+      "section_id": "4.2.1",
+      "guideline_name": "ICH S7A",
+      "citation": "ICH S7A §2.3.1, §2.3.3.2, §2.4.1, §2.7.1-2.7.3, §2.11",
+      "excerpt_text": "ICH S7A requires the nonclinical safety pharmacology test system (species, strain) to be justified (§2.3.1), and the route of administration to match, or explicitly justify a deviation from, the intended clinical route (§2.3.3.2). A dose-response relationship for any observed pharmacological effect must be established or discussed (§2.4.1). The core battery (§2.7.1-2.7.3) requires assessment of the central nervous, cardiovascular, and respiratory systems specifically, as these are the systems whose acute dysfunction poses the greatest immediate risk. GLP compliance (or a justified departure from it) must be stated for the core battery studies (§2.11).",
+      "key_requirements": [
+        "Test system (species/strain) justified (S7A §2.3.1)",
+        "Route of administration matches or justifies deviation from clinical route (S7A §2.3.3.2)",
+        "Dose-response relationship established/discussed (S7A §2.4.1)",
+        "Core battery covers CNS, cardiovascular, and respiratory systems (S7A §2.7.1-2.7.3)",
+        "GLP compliance stated (S7A §2.11)"
+      ]
+    },
+    {
+      "section_id": "4.2.3",
+      "guideline_name": "ICH S2(R1)",
+      "citation": "ICH S2(R1) §2.2, §4.1, §4.3",
+      "excerpt_text": "ICH S2(R1) requires that the standard genotoxicity test battery option used — Option 1 (in vitro battery plus an in vivo test) or Option 2 (in vitro bacterial mutation test plus two in vivo tests) — be explicitly identified (§2.2). The animal species used for in vivo testing must be named (§4.1), and the dose selection for in vivo genotoxicity testing must be justified, typically by reference to a maximum tolerated dose or maximum feasible dose (§4.3).",
+      "key_requirements": [
+        "Genotoxicity battery option (1 or 2) identified (S2(R1) §2.2)",
+        "In vivo test species named (S2(R1) §4.1)",
+        "Dose selection for in vivo testing justified (S2(R1) §4.3)"
+      ]
+    },
+    {
+      "section_id": "3.2.S.3",
+      "guideline_name": "ICH Q3A(R2)",
+      "citation": "ICH Q3A(R2) §5-6, Attachment 1",
+      "excerpt_text": "ICH Q3A(R2) sets thresholds for reporting, identification, and qualification of impurities in new drug substances (§5-6), keyed to the maximum daily dose, with specific numeric thresholds set out in Attachment 1 (a commonly cited reporting threshold is 0.05% for higher-dose drug substances). Impurities must be classified as organic, inorganic, or residual solvents, since each class carries different reporting/qualification expectations. A characterization section must therefore report impurities against these thresholds rather than describing purity qualitatively.",
+      "key_requirements": [
+        "Impurities reported against Q3A(R2) numeric thresholds (Attachment 1)",
+        "Impurities classified as organic/inorganic/residual solvent",
+        "Identification and qualification thresholds addressed, not just a reporting threshold"
+      ]
+    },
+    {
+      "section_id": "3.2.S.4",
+      "guideline_name": "ICH Q2(R2) / Q3A(R2)",
+      "citation": "ICH Q2(R2) §3.1-3.2; ICH Q3A(R2) (impurity listing)",
+      "excerpt_text": "ICH Q2(R2) requires that analytical procedures used to control the drug substance be validated for specificity/selectivity (§3.1) and range/linearity (§3.2), among other validation characteristics, with the validation methodology and acceptance criteria described, not merely asserted. The drug substance specification must list impurities consistent with the thresholds established under Q3A(R2), tying the control strategy back to the impurity profile characterized elsewhere in the dossier.",
+      "key_requirements": [
+        "Analytical procedure specificity/selectivity validated and described (Q2(R2) §3.1)",
+        "Analytical procedure range/linearity validated and described (Q2(R2) §3.2)",
+        "Specification impurity listing consistent with Q3A(R2) thresholds"
+      ]
+    },
+    {
+      "section_id": "3.2.S.7",
+      "guideline_name": "ICH Q1A(R2)",
+      "citation": "ICH Q1A(R2) §2.1.3, §2.1.6, §2.1.7, §2.1.8",
+      "excerpt_text": "ICH Q1A(R2) requires stability data from a minimum of three primary batches of the drug substance (§2.1.3), tested at a defined frequency (§2.1.6) sufficient to characterize the degradation profile. Exact long-term and accelerated storage conditions must be stated (§2.1.7) — commonly 25°C/60% RH or 30°C/65% RH for long-term storage, plus 40°C/75% RH for accelerated conditions, selected according to the general storage-condition zone targeted. Where long-term data do not yet cover the full proposed re-test period at the time of filing, a post-approval stability commitment to continue testing must be included (§2.1.8).",
+      "key_requirements": [
+        "At least 3 primary batches tested (Q1A(R2) §2.1.3)",
+        "Testing frequency stated (Q1A(R2) §2.1.6)",
+        "Exact storage conditions stated: long-term (25°C/60%RH or 30°C/65%RH) + accelerated (40°C/75%RH) (Q1A(R2) §2.1.7)",
+        "Post-approval stability commitment included if long-term data are incomplete (Q1A(R2) §2.1.8)"
+      ]
+    },
+    {
+      "section_id": "3.2.P.5",
+      "guideline_name": "ICH Q2(R2)",
+      "citation": "ICH Q2(R2) (analytical procedure validation for drug product release testing)",
+      "excerpt_text": "ICH Q2(R2) applies the same analytical-procedure validation expectations to finished drug product release testing as to drug substance testing (see 3.2.S.4): specificity/selectivity, range/linearity, accuracy, precision, and other relevant validation characteristics must be demonstrated for each release method, with the validation methodology and acceptance criteria described rather than only the final specification limits.",
+      "key_requirements": [
+        "Drug product release methods validated per Q2(R2) (specificity, range/linearity, etc.)",
+        "Validation methodology and acceptance criteria described, not just limits"
+      ]
+    },
+    {
+      "section_id": "3.2.P.8",
+      "guideline_name": "ICH Q1A(R2)",
+      "citation": "ICH Q1A(R2) §2.2.3, §2.2.6, §2.2.7, §2.2.7.1, §2.2.8",
+      "excerpt_text": "ICH Q1A(R2) requires stability data from a minimum of three primary batches of the drug product (§2.2.3), at a defined testing frequency (§2.2.6), under exact stated storage conditions (§2.2.7) matching the proposed marketing container-closure system. Significant-change criteria (§2.2.7.1) — e.g. specified thresholds for assay, degradation products, and appearance change — must be defined so that a 'significant change' during storage is objectively determinable rather than judged qualitatively. As with the drug substance, a post-approval stability commitment (§2.2.8) is required if long-term data do not yet cover the full proposed shelf life at filing.",
+      "key_requirements": [
+        "At least 3 primary drug-product batches tested (Q1A(R2) §2.2.3)",
+        "Testing frequency stated (Q1A(R2) §2.2.6)",
+        "Exact storage conditions stated, matching proposed packaging (Q1A(R2) §2.2.7)",
+        "Significant-change acceptance criteria defined (assay/degradation/appearance) (Q1A(R2) §2.2.7.1)",
+        "Post-approval stability commitment included if needed (Q1A(R2) §2.2.8)"
+      ]
+    },
+    {
+      "section_id": "3.2.A.2",
+      "guideline_name": "ICH Q5A(R2)",
+      "citation": "ICH Q5A(R2) §3, §5-6",
+      "excerpt_text": "ICH Q5A(R2) applies only to biotechnological/biological products derived from cell lines (this excerpt is therefore conditional and not applicable to small-molecule/chemical drug substances). Where applicable, §3 requires qualification of the Master Cell Bank and Working Cell Bank, including viral testing to establish freedom from adventitious agents. §5-6 require a viral clearance study designed to demonstrate the manufacturing process's capacity to inactivate/remove relevant model and specific viruses, with the study design and evaluation criteria described.",
+      "key_requirements": [
+        "APPLICABILITY: only relevant if the product is biotech/biological (cell-line derived) — not applicable to small-molecule NDAs",
+        "MCB/WCB qualification and viral testing described (Q5A(R2) §3)",
+        "Viral clearance study design and evaluation described (Q5A(R2) §5-6)"
+      ]
+    },
+    {
+      "section_id": "3.2.S.4_Q4B_NOTE",
+      "guideline_name": "ICH Q4B",
+      "citation": "ICH Q4B (pharmacopoeial method interchangeability) — PLACEHOLDER",
+      "excerpt_text": "PLACEHOLDER: ICH Q4B (evaluation of pharmacopoeial texts for interchangeability) was only referenced tangentially in this project's conversation history, in relation to whether a compendial (e.g. USP/Ph.Eur.) analytical method could be used interchangeably in 3.2.S.4/3.2.P.5 in place of an in-house validated method. No guideline structure or section-level detail for Q4B was established in that discussion, so no excerpt_text is asserted here beyond this note. This is not a standalone CTD section_id — it is retained as a cross-reference placeholder for 3.2.S.4/3.2.P.5 rather than a separately gated section.",
+      "key_requirements": []
+    }
+  ]
+}

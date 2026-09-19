@@ -12,6 +12,7 @@ class Settings(BaseSettings):
         "postgresql://postgres:postgres@localhost:5432/safety_ctd_db"
     )
     GEMINI_API_KEY: str = os.getenv("GEMINI_API_KEY", "")
+    ANTHROPIC_API_KEY: str = os.getenv("ANTHROPIC_API_KEY", "")
 
     # Comma-separated list of allowed frontend origins for CORS, e.g.
     # "https://pharmsignals.vercel.app,http://localhost:3000". No wildcard

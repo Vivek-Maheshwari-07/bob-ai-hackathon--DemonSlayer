@@ -15,9 +15,8 @@ if _backend_dir not in sys.path:
 
 try:
     from app.m4_rag.completeness import CompletenessScorer
-    from app.m4_rag.content_verifier import ContentVerifier, content_adequacy_score
-    from app.m4_rag.authenticity_checker import AuthenticityChecker
-    from app.m4_rag.exemplar_retriever import ExemplarRetriever
+    from app.m4_rag.guideline_grounded_checker import GuidelineGroundedChecker
+    from app.m4_rag.knowledge.guideline_excerpts_loader import get_guideline_excerpts
     from app.m4_rag.dossier_parser import DossierParser
     from app.m4_rag.gap_checker import GapChecker
     from app.m4_rag.gemini_reasoner import GeminiGroundedReasoner
@@ -34,9 +33,8 @@ try:
     )
 except ImportError:
     from .completeness import CompletenessScorer
-    from .content_verifier import ContentVerifier, content_adequacy_score
-    from .authenticity_checker import AuthenticityChecker
-    from .exemplar_retriever import ExemplarRetriever
+    from .guideline_grounded_checker import GuidelineGroundedChecker
+    from .knowledge.guideline_excerpts_loader import get_guideline_excerpts
     from .dossier_parser import DossierParser
     from .gap_checker import GapChecker
     from .gemini_reasoner import GeminiGroundedReasoner
@@ -64,9 +62,8 @@ class CTDRagCheckerPipeline:
         scorer: Optional[CompletenessScorer] = None,
         report_generator: Optional[ReportGenerator] = None,
         reasoner: Optional[GeminiGroundedReasoner] = None,
-        content_verifier: Optional[ContentVerifier] = None,
-        exemplar_retriever: Optional[ExemplarRetriever] = None,
-        authenticity_checker: Optional[AuthenticityChecker] = None,
+        guideline_checker: Optional[GuidelineGroundedChecker] = None,
+        guideline_excerpts: Optional[Dict[str, dict]] = None,
     ):
         self.kb = kb or get_knowledge_base()
         self.retriever = retriever or ICHRetriever(self.kb)
@@ -74,9 +71,12 @@ class CTDRagCheckerPipeline:
         self.scorer = scorer or CompletenessScorer(self.kb)
         self.report_generator = report_generator or ReportGenerator(self.scorer)
         self.reasoner = reasoner or GeminiGroundedReasoner()
-        self.content_verifier = content_verifier or ContentVerifier()
-        self.exemplar_retriever = exemplar_retriever or ExemplarRetriever()
-        self.authenticity_checker = authenticity_checker or AuthenticityChecker()
+        # guideline_grounded_checker.py is the single, consolidated
+        # content-verification tier, replacing the earlier separate Tier 2
+        # (content_checkpoints/content_verifier.py) and Tier 3
+        # (exemplar_corpus/authenticity_checker.py) proposals.
+        self.guideline_checker = guideline_checker or GuidelineGroundedChecker()
+        self.guideline_excerpts = guideline_excerpts if guideline_excerpts is not None else get_guideline_excerpts()
 
     def run(
         self,
@@ -102,24 +102,15 @@ class CTDRagCheckerPipeline:
         # sections for mandatory review when this drug has a CONFIRMED_SIGNAL.
         safety_signal_linkage = apply_safety_signal_flags(normalized_outline.drug_name, gap_items)
 
-        # Step 2c: Tier 2 content-adequacy verification. Only runs for the
-        # handful of sections that carry `content_checkpoints` in the KB, and
-        # only against sections Tier 1 already found PRESENT/PARTIAL (a
-        # MISSING section has no dossier text to check). Silently no-ops
-        # (content_adequacy_score stays None) when Gemini is unavailable or a
-        # section has no checkpoints defined, so it never regresses Tier 1.
-        self._apply_content_verification(normalized_outline, gap_items)
-
-        # Step 2c-2: Tier 3 content-authenticity verification. Runs only on
-        # sections that (a) passed the substance gate (substance_gate_reason
-        # is None — a section the gate already forced to MISSING has no real
-        # text worth comparing) and (b) have real (non-placeholder) exemplars
-        # available for their section_id. Silently no-ops
-        # (authenticity_verdict stays None) when Gemini is unavailable or the
-        # exemplar corpus has nothing for this section yet, so an empty
-        # exemplar corpus degrades the whole system cleanly to Tier 1 +
-        # substance gate + Tier 2 behavior.
-        self._apply_authenticity_check(normalized_outline, gap_items)
+        # Step 2c: Guideline-grounded content check (consolidated tier). Runs
+        # strictly after the substance gate: only for sections that (a)
+        # passed it (substance_gate_reason is None — a gate-forced-MISSING
+        # section has no real text worth checking) and (b) have a real ICH
+        # guideline excerpt for their section_id. Silently no-ops
+        # (guideline_verdict stays None) when ANTHROPIC_API_KEY is
+        # unavailable, the SDK call fails, or no excerpt exists yet, so this
+        # degrades cleanly to Tier 1 + substance-gate-only behavior.
+        self._apply_guideline_check(normalized_outline, gap_items)
 
         # Step 2d: Tier 0 document-scale sanity check. Only meaningful when
         # this outline came from a real PDF (source_page_count is set by
@@ -190,80 +181,30 @@ class CTDRagCheckerPipeline:
             if part and part.strip()
         )
 
-    def _apply_content_verification(
+    def _apply_guideline_check(
         self,
         outline: DossierOutlineInput,
         gap_items: List[Any],
     ) -> None:
-        """Runs Tier 2 content-adequacy verification in place on `gap_items`.
-
-        For each GapItem that is PRESENT/PARTIAL and whose ICH requirement
-        defines `content_checkpoints`, looks up the actual matched dossier
-        section (by the section_id Tier 1 recorded in match_evidence) and
-        verifies its real text against those checkpoints. Anything else
-        (MISSING items, sections without checkpoints, or a failed/unavailable
-        Gemini call) is skipped silently — content_adequacy_score stays None.
-        """
-        dossier_by_id = self._dossier_by_id(outline)
-
-        for item in gap_items:
-            if item.status not in (GapStatus.PRESENT, GapStatus.PARTIAL):
-                continue
-
-            req = self.kb.get_by_id(item.section_id)
-            checkpoints = getattr(req, "content_checkpoints", None) if req else None
-            if not checkpoints:
-                continue
-
-            matched_id = item.match_evidence.matched_dossier_section_id
-            dossier_section = dossier_by_id.get((matched_id or "").strip().upper())
-            if dossier_section is None:
-                continue
-
-            section_text = self._build_section_text(dossier_section)
-            if not section_text:
-                continue
-
-            try:
-                results = self.content_verifier.verify_section_content(section_text, checkpoints)
-                score = content_adequacy_score(results)
-            except Exception:
-                # Defense in depth: ContentVerifier already fails soft
-                # internally, this outer guard just guarantees Tier 1 never
-                # breaks because of a Tier 2 error.
-                results, score = [], None
-
-            if score is not None:
-                item.content_adequacy_score = score
-                item.checkpoint_results = [r.to_dict() for r in results]
-
-    def _apply_authenticity_check(
-        self,
-        outline: DossierOutlineInput,
-        gap_items: List[Any],
-    ) -> None:
-        """Runs Tier 3 content-authenticity verification in place on `gap_items`.
+        """Runs the consolidated guideline-grounded check in place on `gap_items`.
 
         For each GapItem that is PRESENT/PARTIAL, passed the substance gate
-        (substance_gate_reason is None), has real body_text captured (see
-        below), and has real (non-placeholder) exemplars available for its
-        section_id, retrieves the top-k most relevant exemplars and runs one
-        grounded Gemini comparison. Anything else (MISSING items,
-        gate-forced-MISSING items, sections with no exemplars, or a
-        failed/unavailable Gemini call) is skipped silently —
-        authenticity_verdict stays None, so an empty/placeholder exemplar
-        corpus degrades the whole system cleanly to prior-tier behavior.
+        (substance_gate_reason is None), has real body_text captured, and has
+        a real guideline excerpt for its section_id, compares the candidate's
+        actual text against that excerpt via Claude Haiku. Anything else
+        (MISSING items, gate-forced-MISSING items, sections with no excerpt,
+        or a failed/unavailable Anthropic call) is skipped silently —
+        guideline_verdict stays None, so a missing ANTHROPIC_API_KEY or an
+        unpopulated excerpt corpus degrades the whole system cleanly to
+        Tier 1 + substance-gate-only behavior.
 
-        Deliberately requires real `body_text` rather than falling back to
-        the short `description` preview the way Tier 2 does: comparing a
-        one-line demo blurb against a real regulatory exemplar would almost
-        always read as INSUFFICIENT once the corpus is populated, silently
-        regressing every short structured/API dossier that predates Tier 3
-        (the exact regression the substance gate's own body_text-only scope
-        was designed to avoid). Real extracted document text is required for
-        a fair comparison either way.
+        Deliberately requires real `body_text` (not the short `description`
+        preview): comparing a one-line demo blurb against the actual ICH
+        guideline text would read as INSUFFICIENT/EMPTY for virtually every
+        pre-existing structured/API dossier, regressing them the moment a
+        real API key is configured.
         """
-        if not self.exemplar_retriever.is_available:
+        if not self.guideline_excerpts:
             return
 
         dossier_by_id = self._dossier_by_id(outline)
@@ -273,7 +214,9 @@ class CTDRagCheckerPipeline:
                 continue
             if getattr(item, "substance_gate_reason", None) is not None:
                 continue
-            if not self.exemplar_retriever.has_exemplars_for(item.section_id):
+
+            excerpt_record = self.guideline_excerpts.get(item.section_id.strip().upper())
+            if not excerpt_record:
                 continue
 
             matched_id = item.match_evidence.matched_dossier_section_id
@@ -285,34 +228,24 @@ class CTDRagCheckerPipeline:
             if not section_text:
                 continue
 
-            exemplars = self.exemplar_retriever.retrieve(item.section_id, section_text, top_k=2)
-            if not exemplars:
-                continue
-
             try:
-                result = self.authenticity_checker.check_content_authenticity(
+                result = self.guideline_checker.check_against_guideline(
                     candidate_section={
                         "section_id": item.section_id,
                         "title": dossier_section.title,
-                        "text": section_text,
+                        "body_text": section_text,
                     },
-                    exemplars=[
-                        {"source_citation": ex.source_citation, "exemplar_text": ex.exemplar_text}
-                        for ex in exemplars
-                    ],
+                    excerpt_record=excerpt_record,
                 )
             except Exception:
-                # Defense in depth: AuthenticityChecker already fails soft
-                # internally, this outer guard just guarantees prior tiers
-                # never break because of a Tier 3 error.
+                # Defense in depth: GuidelineGroundedChecker already fails
+                # soft internally, this outer guard just guarantees prior
+                # tiers never break because of a checker error.
                 result = None
 
             if result is not None:
-                item.authenticity_verdict = result.verdict
-                item.authenticity_evidence = {
-                    **result.to_dict(),
-                    "source_citations": [ex.source_citation for ex in exemplars],
-                }
+                item.guideline_verdict = result.verdict
+                item.guideline_check_evidence = result.to_dict()
 
     def run_pdf(
         self,

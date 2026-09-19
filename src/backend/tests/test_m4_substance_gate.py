@@ -11,6 +11,7 @@ criticality.
 """
 
 import io
+from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import numpy as np
@@ -22,6 +23,8 @@ from app.m4_rag.knowledge.loader import get_knowledge_base
 from app.m4_rag.pipeline import CTDRagCheckerPipeline
 from app.m4_rag.schema import CriticalityLevel, DossierSectionInput, GapStatus, ICHSectionRequirement
 from app.m4_rag.substance_gate import document_scale_check, substance_gate
+
+FIXTURES_DIR = Path(__file__).parent / "fixtures"
 
 
 @pytest.fixture(autouse=True)
@@ -339,3 +342,33 @@ def test_substance_gate_does_not_false_trigger_on_legitimate_vioxx_content():
         assert item.status != GapStatus.MISSING, (
             f"Section {section_id} with genuinely substantive content was incorrectly forced MISSING"
         )
+
+
+# ─── Fixture-file regression: tests/fixtures/*.pdf ─────────────────────────
+# See tests/fixtures/README.md — these are reconstructions of the originally
+# reported label-only fixtures (not present in this environment), built from
+# the live KB to reproduce the same failure mode from an actual PDF file on
+# disk rather than an in-memory buffer.
+
+
+@pytest.mark.parametrize(
+    "fixture_name",
+    ["ctd_m4_55_percent_completeness_test.pdf", "m4_55_percent_completeness_demo.pdf"],
+)
+def test_fixture_pdf_scores_below_15_percent_with_scale_warning(fixture_name):
+    fixture_path = FIXTURES_DIR / fixture_name
+    assert fixture_path.exists(), f"Missing fixture: {fixture_path}"
+
+    pipeline = CTDRagCheckerPipeline()
+    with open(fixture_path, "rb") as f:
+        report = pipeline.run_pdf(
+            f.read(),
+            submission_title=f"Fixture Regression: {fixture_name}",
+            enable_reasoner=False,
+        )
+
+    assert report.overall_completeness < 15.0, (
+        f"{fixture_name} scored {report.overall_completeness}% — the substance gate "
+        f"should have collapsed this label-only table to well under 15%"
+    )
+    assert report.scale_warning is not None, f"{fixture_name} should raise a document-scale warning"
