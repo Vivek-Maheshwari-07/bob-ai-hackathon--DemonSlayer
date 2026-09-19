@@ -15,6 +15,7 @@ if _backend_dir not in sys.path:
 
 try:
     from app.m4_rag.completeness import CompletenessScorer
+    from app.m4_rag.content_verifier import ContentVerifier, content_adequacy_score
     from app.m4_rag.dossier_parser import DossierParser
     from app.m4_rag.gap_checker import GapChecker
     from app.m4_rag.gemini_reasoner import GeminiGroundedReasoner
@@ -26,9 +27,11 @@ try:
     from app.m4_rag.schema import (
         DossierOutlineInput,
         GapReportOutput,
+        GapStatus,
     )
 except ImportError:
     from .completeness import CompletenessScorer
+    from .content_verifier import ContentVerifier, content_adequacy_score
     from .dossier_parser import DossierParser
     from .gap_checker import GapChecker
     from .gemini_reasoner import GeminiGroundedReasoner
@@ -40,6 +43,7 @@ except ImportError:
     from .schema import (
         DossierOutlineInput,
         GapReportOutput,
+        GapStatus,
     )
 
 
@@ -54,6 +58,7 @@ class CTDRagCheckerPipeline:
         scorer: Optional[CompletenessScorer] = None,
         report_generator: Optional[ReportGenerator] = None,
         reasoner: Optional[GeminiGroundedReasoner] = None,
+        content_verifier: Optional[ContentVerifier] = None,
     ):
         self.kb = kb or get_knowledge_base()
         self.retriever = retriever or ICHRetriever(self.kb)
@@ -61,6 +66,7 @@ class CTDRagCheckerPipeline:
         self.scorer = scorer or CompletenessScorer(self.kb)
         self.report_generator = report_generator or ReportGenerator(self.scorer)
         self.reasoner = reasoner or GeminiGroundedReasoner()
+        self.content_verifier = content_verifier or ContentVerifier()
 
     def run(
         self,
@@ -85,6 +91,14 @@ class CTDRagCheckerPipeline:
         # Step 2b: Cross-link Mode 1 (M2 PRR signal detection) — flag safety
         # sections for mandatory review when this drug has a CONFIRMED_SIGNAL.
         safety_signal_linkage = apply_safety_signal_flags(normalized_outline.drug_name, gap_items)
+
+        # Step 2c: Tier 2 content-adequacy verification. Only runs for the
+        # handful of sections that carry `content_checkpoints` in the KB, and
+        # only against sections Tier 1 already found PRESENT/PARTIAL (a
+        # MISSING section has no dossier text to check). Silently no-ops
+        # (content_adequacy_score stays None) when Gemini is unavailable or a
+        # section has no checkpoints defined, so it never regresses Tier 1.
+        self._apply_content_verification(normalized_outline, gap_items)
 
         # Step 3: Compute completeness scores
         overall_score, _ = self.scorer.calculate(gap_items)
@@ -119,6 +133,65 @@ class CTDRagCheckerPipeline:
         )
 
         return report
+
+    def _apply_content_verification(
+        self,
+        outline: DossierOutlineInput,
+        gap_items: List[Any],
+    ) -> None:
+        """Runs Tier 2 content-adequacy verification in place on `gap_items`.
+
+        For each GapItem that is PRESENT/PARTIAL and whose ICH requirement
+        defines `content_checkpoints`, looks up the actual matched dossier
+        section (by the section_id Tier 1 recorded in match_evidence) and
+        verifies its real text against those checkpoints. Anything else
+        (MISSING items, sections without checkpoints, or a failed/unavailable
+        Gemini call) is skipped silently — content_adequacy_score stays None.
+        """
+        dossier_by_id: Dict[str, Any] = {
+            s.section_id.strip().upper(): s
+            for s in outline.sections
+            if s.section_id
+        }
+
+        for item in gap_items:
+            if item.status not in (GapStatus.PRESENT, GapStatus.PARTIAL):
+                continue
+
+            req = self.kb.get_by_id(item.section_id)
+            checkpoints = getattr(req, "content_checkpoints", None) if req else None
+            if not checkpoints:
+                continue
+
+            matched_id = item.match_evidence.matched_dossier_section_id
+            dossier_section = dossier_by_id.get((matched_id or "").strip().upper())
+            if dossier_section is None:
+                continue
+
+            section_text = " ".join(
+                part.strip()
+                for part in (
+                    dossier_section.title,
+                    dossier_section.description,
+                    dossier_section.content_summary,
+                )
+                if part and part.strip()
+            )
+            if not section_text:
+                continue
+
+            try:
+                results = self.content_verifier.verify_section_content(section_text, checkpoints)
+                score = content_adequacy_score(results)
+            except Exception:
+                # Defense in depth: ContentVerifier already fails soft
+                # internally, this outer guard just guarantees Tier 1 never
+                # breaks because of a Tier 2 error.
+                results, score = [], None
+
+            if score is not None:
+                item.content_adequacy_score = score
+                item.checkpoint_results = [r.to_dict() for r in results]
 
     def run_pdf(
         self,

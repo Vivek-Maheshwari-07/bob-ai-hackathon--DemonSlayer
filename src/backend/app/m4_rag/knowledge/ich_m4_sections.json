@@ -129,7 +129,29 @@
     "criticality": "CRITICAL",
     "weight": 1.0,
     "source": "ICH M4E(R2) Efficacy Guideline",
-    "keywords": ["clinical summary", "summary of clinical efficacy", "summary of clinical safety", "clinical pharmacology summary"]
+    "keywords": ["clinical summary", "summary of clinical efficacy", "summary of clinical safety", "clinical pharmacology summary"],
+    "content_checkpoints": [
+          {
+              "id": "clinical_pharm_summary",
+              "question": "Is clinical pharmacology (PK/PD) summarized across the included studies?",
+              "required_by": "ICH E3 §9.5.4 / E9 §2.2.2"
+          },
+          {
+              "id": "efficacy_summary_integrated",
+              "question": "Is an integrated summary of clinical efficacy across studies presented (not just single-study results)?",
+              "required_by": "ICH E3 §11.4"
+          },
+          {
+              "id": "safety_summary_integrated",
+              "question": "Is an integrated summary of clinical safety (AE incidence, SAEs, deaths) presented across studies?",
+              "required_by": "ICH E3 §12.2-12.3"
+          },
+          {
+              "id": "population_coverage_stated",
+              "question": "Does the summary state which populations (age groups, special populations) were studied across the program?",
+              "required_by": "ICH E3 §9.3.1"
+          }
+      ]
   },
   {
     "section_id": "3.1",
@@ -217,7 +239,34 @@
     "criticality": "CRITICAL",
     "weight": 1.0,
     "source": "ICH M4Q(R1) Quality Guideline",
-    "keywords": ["drug substance stability", "retest period", "accelerated stability", "photostability", "ich q1a"]
+    "keywords": ["drug substance stability", "retest period", "accelerated stability", "photostability", "ich q1a"],
+    "content_checkpoints": [
+          {
+              "id": "storage_conditions_specified",
+              "question": "Are exact long-term, intermediate, and accelerated storage conditions (temperature/humidity) specified?",
+              "required_by": "ICH Q1A(R2) §2.1.7"
+          },
+          {
+              "id": "batch_count_minimum_3",
+              "question": "Does the stability data cover at least three primary batches?",
+              "required_by": "ICH Q1A(R2) §2.1.3"
+          },
+          {
+              "id": "testing_duration_stated",
+              "question": "Is the minimum testing duration (e.g. 12 months long-term, 6 months accelerated) stated?",
+              "required_by": "ICH Q1A(R2) §2.1.7.1"
+          },
+          {
+              "id": "retest_period_stated",
+              "question": "Is a proposed re-test period explicitly stated?",
+              "required_by": "ICH Q1A(R2) §2.1.9"
+          },
+          {
+              "id": "stability_commitment_present",
+              "question": "Is a post-approval stability commitment included if long-term data doesn't yet cover the full re-test period?",
+              "required_by": "ICH Q1A(R2) §2.1.8"
+          }
+      ]
   },
   {
     "section_id": "3.2.P.1",
@@ -305,7 +354,34 @@
     "criticality": "CRITICAL",
     "weight": 1.0,
     "source": "ICH M4Q(R1) Quality Guideline",
-    "keywords": ["drug product stability", "shelf life", "accelerated stability", "in-use stability", "ich q1a"]
+    "keywords": ["drug product stability", "shelf life", "accelerated stability", "in-use stability", "ich q1a"],
+    "content_checkpoints": [
+          {
+              "id": "storage_conditions_specified",
+              "question": "Are exact long-term, intermediate, and accelerated storage conditions (temperature/humidity) specified for the drug product?",
+              "required_by": "ICH Q1A(R2) §2.2.7"
+          },
+          {
+              "id": "batch_count_minimum_3",
+              "question": "Does the stability data cover at least three primary batches of the drug product?",
+              "required_by": "ICH Q1A(R2) §2.2.3"
+          },
+          {
+              "id": "shelf_life_stated",
+              "question": "Is a proposed shelf life explicitly stated?",
+              "required_by": "ICH Q1A(R2) §2.2.9"
+          },
+          {
+              "id": "container_closure_specified",
+              "question": "Is the container closure system used for stability testing specified as matching the proposed marketing packaging?",
+              "required_by": "ICH Q1A(R2) §2.2.4"
+          },
+          {
+              "id": "significant_change_criteria",
+              "question": "Are significant-change acceptance criteria (assay, degradation products, appearance) defined?",
+              "required_by": "ICH Q1A(R2) §2.2.7.1"
+          }
+      ]
   },
   {
     "section_id": "3.2.A",
@@ -349,7 +425,34 @@
     "criticality": "CRITICAL",
     "weight": 1.0,
     "source": "ICH M4S(R2) Safety Guideline",
-    "keywords": ["pharmacology reports", "safety pharmacology", "herg assay", "cns safety", "cardiovascular safety", "ich s7a", "ich s7b"]
+    "keywords": ["pharmacology reports", "safety pharmacology", "herg assay", "cns safety", "cardiovascular safety", "ich s7a", "ich s7b"],
+    "content_checkpoints": [
+          {
+              "id": "core_battery_covered",
+              "question": "Are all three core battery systems (central nervous, cardiovascular, respiratory) explicitly assessed?",
+              "required_by": "ICH S7A §2.7.1-2.7.3"
+          },
+          {
+              "id": "test_system_justified",
+              "question": "Is the animal model/test system selection justified (species, strain)?",
+              "required_by": "ICH S7A §2.3.1"
+          },
+          {
+              "id": "route_matches_clinical",
+              "question": "Is the route of administration stated, and does it match (or justify deviation from) the intended clinical route?",
+              "required_by": "ICH S7A §2.3.3.2"
+          },
+          {
+              "id": "dose_response_established",
+              "question": "Is a dose-response relationship for the observed effect established or discussed?",
+              "required_by": "ICH S7A §2.4.1"
+          },
+          {
+              "id": "glp_compliance_stated",
+              "question": "Is GLP compliance (or justified non-compliance) explicitly stated for the core battery?",
+              "required_by": "ICH S7A §2.11"
+          }
+      ]
   },
   {
     "section_id": "4.2.2",
@@ -371,7 +474,34 @@
     "criticality": "CRITICAL",
     "weight": 1.0,
     "source": "ICH M4S(R2) Safety Guideline",
-    "keywords": ["toxicology reports", "glp toxicology", "repeat-dose toxicity", "genotoxicity", "carcinogenicity", "reproductive toxicity", "ich s2", "ich s9"]
+    "keywords": ["toxicology reports", "glp toxicology", "repeat-dose toxicity", "genotoxicity", "carcinogenicity", "reproductive toxicity", "ich s2", "ich s9"],
+    "content_checkpoints": [
+          {
+              "id": "battery_option_stated",
+              "question": "Is the genotoxicity standard battery option used (Option 1 or Option 2) explicitly identified?",
+              "required_by": "ICH S2(R1) §2.2"
+          },
+          {
+              "id": "ames_test_included",
+              "question": "Is a bacterial reverse mutation (Ames) test included and reported?",
+              "required_by": "ICH S2(R1) §2.2(i)"
+          },
+          {
+              "id": "species_named",
+              "question": "Are the animal species used in in vivo genotoxicity/toxicology testing explicitly named?",
+              "required_by": "ICH S2(R1) §4.1"
+          },
+          {
+              "id": "dose_selection_justified",
+              "question": "Is the dose selection/rationale for in vivo genotoxicity testing explained?",
+              "required_by": "ICH S2(R1) §4.3"
+          },
+          {
+              "id": "noael_or_toxicity_reported",
+              "question": "Is a NOAEL or comparable toxicity threshold reported for the repeat-dose/genotoxicity studies?",
+              "required_by": "ICH S7A / general toxicology practice"
+          }
+      ]
   },
   {
     "section_id": "4.3",
@@ -437,7 +567,29 @@
     "criticality": "CRITICAL",
     "weight": 1.0,
     "source": "ICH M4E(R2) Efficacy Guideline",
-    "keywords": ["human pk reports", "phase 1 pk", "sad mad", "food effect", "drug interactions", "population pk", "special populations"]
+    "keywords": ["human pk reports", "phase 1 pk", "sad mad", "food effect", "drug interactions", "population pk", "special populations"],
+    "content_checkpoints": [
+          {
+              "id": "analysis_set_defined",
+              "question": "Is the analysis set used (Full Analysis Set vs. Per Protocol Set) explicitly stated?",
+              "required_by": "ICH E9 §5.2.1-5.2.2"
+          },
+          {
+              "id": "population_studied",
+              "question": "Is the study population (healthy volunteers vs. patients, special populations e.g. renal/hepatic impairment) specified?",
+              "required_by": "ICH E9 §2.2.1"
+          },
+          {
+              "id": "pk_parameters_reported",
+              "question": "Are key PK parameters (e.g. Cmax, AUC) explicitly reported?",
+              "required_by": "ICH E3 §11.4.4"
+          },
+          {
+              "id": "ci_method_stated",
+              "question": "Is the confidence interval / statistical method used for PK comparison stated?",
+              "required_by": "ICH E9 §5.5"
+          }
+      ]
   },
   {
     "section_id": "5.3.4",
@@ -448,7 +600,24 @@
     "criticality": "MAJOR",
     "weight": 1.0,
     "source": "ICH M4E(R2) Efficacy Guideline",
-    "keywords": ["human pd studies", "pk pd modeling", "exposure response", "pharmacodynamic endpoints"]
+    "keywords": ["human pd studies", "pk pd modeling", "exposure response", "pharmacodynamic endpoints"],
+    "content_checkpoints": [
+          {
+              "id": "pd_endpoint_defined",
+              "question": "Is a pharmacodynamic endpoint or biomarker explicitly defined?",
+              "required_by": "ICH E9 §2.2.2"
+          },
+          {
+              "id": "exposure_response_modeled",
+              "question": "Is an exposure-response (PK/PD) relationship described or modeled?",
+              "required_by": "ICH E9 §2.2.2"
+          },
+          {
+              "id": "comparison_type_stated",
+              "question": "Is the type of comparison (superiority, equivalence, dose-response) explicitly stated?",
+              "required_by": "ICH E9 §3.3"
+          }
+      ]
   },
   {
     "section_id": "5.3.5",
@@ -459,7 +628,49 @@
     "criticality": "CRITICAL",
     "weight": 1.0,
     "source": "ICH M4E(R2) Efficacy Guideline",
-    "keywords": ["pivotal clinical trials", "phase 3 csr", "integrated safety summary", "integrated efficacy summary", "ich e3", "clinical study report"]
+    "keywords": ["pivotal clinical trials", "phase 3 csr", "integrated safety summary", "integrated efficacy summary", "ich e3", "clinical study report"],
+    "content_checkpoints": [
+          {
+              "id": "population_defined",
+              "question": "Does the study report explicitly define the patient population studied (age range, e.g. adult/pediatric/geriatric, and relevant inclusion/exclusion criteria)?",
+              "required_by": "ICH E3 §9.3.1-9.3.2"
+          },
+          {
+              "id": "study_design_stated",
+              "question": "Is the overall study design explicitly described (e.g. randomized, double-blind, parallel-group)?",
+              "required_by": "ICH E3 §9.1"
+          },
+          {
+              "id": "control_group_described",
+              "question": "Is the comparator/control group described (placebo, active control, dose)?",
+              "required_by": "ICH E3 §9.2"
+          },
+          {
+              "id": "primary_endpoint_stated",
+              "question": "Is a primary efficacy variable/endpoint explicitly defined?",
+              "required_by": "ICH E3 §9.5.3"
+          },
+          {
+              "id": "sample_size_justified",
+              "question": "Is the sample size and its statistical determination/rationale stated?",
+              "required_by": "ICH E3 §9.7.2"
+          },
+          {
+              "id": "disposition_reported",
+              "question": "Is patient disposition (enrolled, completed, discontinued, and reasons) reported?",
+              "required_by": "ICH E3 §10.1"
+          },
+          {
+              "id": "demographic_baseline_reported",
+              "question": "Are demographic and baseline characteristics (age, sex, race) of the study population reported?",
+              "required_by": "ICH E3 §11.2"
+          },
+          {
+              "id": "sae_deaths_listed",
+              "question": "Are deaths and other serious adverse events explicitly reported/listed?",
+              "required_by": "ICH E3 §12.3.1"
+          }
+      ]
   },
   {
     "section_id": "5.3.6",

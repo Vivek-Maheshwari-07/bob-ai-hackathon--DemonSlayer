@@ -34,6 +34,15 @@ class CompletenessScorer:
         CriticalityLevel.OPTIONAL: 0.5,
     }
 
+    # Tier 2 content-adequacy downgrade thresholds: when a section has a
+    # content_adequacy_score (grounded checkpoint verification ran), that
+    # score overrides the Tier-1 structural status for scoring purposes.
+    # Sections with content_adequacy_score=None (no checkpoints for that
+    # section, or Gemini unavailable/failed) keep their original Tier-1
+    # status score unchanged — Tier 2 is additive, never a regression.
+    CONTENT_ADEQUACY_PRESENT_THRESHOLD = 0.8
+    CONTENT_ADEQUACY_PARTIAL_THRESHOLD = 0.4
+
     MODULE_NAMES = {
         1: "Module 1: Administrative Information",
         2: "Module 2: CTD Summaries",
@@ -44,6 +53,28 @@ class CompletenessScorer:
 
     def __init__(self, kb: Optional[KnowledgeBaseLoader] = None):
         self.kb = kb or get_knowledge_base()
+
+    def _effective_status_score(self, item: GapItem) -> float:
+        """Returns the per-item status score used in the weighted formula.
+
+        When Tier 2 content-adequacy verification ran for this section
+        (content_adequacy_score is not None), that grounded score overrides
+        the Tier-1 structural status score. Otherwise falls back to the
+        original Tier-1 PRESENT/PARTIAL/MISSING score, unchanged.
+        """
+        score = getattr(item, "content_adequacy_score", None)
+        if score is not None:
+            if score >= self.CONTENT_ADEQUACY_PRESENT_THRESHOLD:
+                return self.WEIGHT_PRESENT
+            if score >= self.CONTENT_ADEQUACY_PARTIAL_THRESHOLD:
+                return self.WEIGHT_PARTIAL
+            return self.WEIGHT_MISSING
+
+        if item.status == GapStatus.PRESENT:
+            return self.WEIGHT_PRESENT
+        if item.status == GapStatus.PARTIAL:
+            return self.WEIGHT_PARTIAL
+        return self.WEIGHT_MISSING
 
     def calculate(
         self, gap_items: List[GapItem]
@@ -89,10 +120,7 @@ class CompletenessScorer:
             mod_possible = 0.0
             for i in items:
                 w = self.CRITICALITY_WEIGHTS.get(i.criticality, 1.0)
-                if i.status == GapStatus.PRESENT:
-                    mod_earned += w * self.WEIGHT_PRESENT
-                elif i.status == GapStatus.PARTIAL:
-                    mod_earned += w * self.WEIGHT_PARTIAL
+                mod_earned += w * self._effective_status_score(i)
                 mod_possible += w * self.WEIGHT_PRESENT
 
             mod_pct = (mod_earned / mod_possible * 100.0) if mod_possible > 0 else 0.0

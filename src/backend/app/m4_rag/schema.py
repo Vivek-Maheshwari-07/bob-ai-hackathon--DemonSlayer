@@ -69,6 +69,10 @@ class ICHSectionRequirement(BaseModel):
     weight: float = Field(default=1.0, ge=0.0, le=1.0, description="Weight factor for completeness calculation")
     source: str = Field(default="ICH M4", description="Authoritative reference (ICH M4, M4Q, M4S, M4E)")
     keywords: List[str] = Field(default_factory=list, description="Domain keywords for retrieval indexing")
+    content_checkpoints: Optional[List[dict]] = Field(
+        default=None,
+        description="Tier 2 content-adequacy checkpoints (id/question/required_by) verified against the actual matched dossier section text, distinct from Tier 1 structural presence matching.",
+    )
 
 
 class MatchEvidence(BaseModel):
@@ -98,6 +102,14 @@ class GapItem(BaseModel):
     safety_update_reason: Optional[str] = Field(
         default=None,
         description="Explanation of the confirmed signal driving the mandatory safety review flag.",
+    )
+    content_adequacy_score: Optional[float] = Field(
+        default=None,
+        description="Tier 2 content-adequacy score (fraction of grounded checkpoints answered YES). None when Tier 2 was skipped (no checkpoints defined for this section, or Gemini unavailable).",
+    )
+    checkpoint_results: Optional[List[dict]] = Field(
+        default=None,
+        description="Per-checkpoint Tier 2 verification results (id, question, answer, quote) grounded strictly in the matched dossier section text.",
     )
 
 

@@ -98,19 +98,25 @@ def generate_gap_report_pdf(report: GapReportOutput) -> bytes:
 
     story.append(Paragraph(f"Priority Gaps ({len(report.priority_gaps)})", styles["Heading2"]))
     if report.priority_gaps:
-        gap_rows = [["Section", "Title", "Status", "Criticality", "Safety", "Action Item"]]
+        gap_rows = [["Section", "Title", "Status", "Criticality", "Content Adequacy", "Safety", "Action Item"]]
         for g in report.priority_gaps:
+            adequacy_score = getattr(g, "content_adequacy_score", None)
+            if adequacy_score is None:
+                adequacy_cell = Paragraph("N/A", cell_style)
+            else:
+                adequacy_cell = Paragraph(f"{adequacy_score * 100:.0f}%", cell_style)
             gap_rows.append([
                 Paragraph(escape(g.section_id), cell_style),
                 Paragraph(escape(g.title), cell_style),
                 Paragraph(escape(_enum_value(g.status)), cell_style),
                 Paragraph(escape(_enum_value(g.criticality)), cell_style),
+                adequacy_cell,
                 Paragraph("&#9888; YES" if g.requires_safety_update else "-", cell_style),
                 Paragraph(escape(g.action_item or ""), cell_style),
             ])
         gap_table = Table(
             gap_rows,
-            colWidths=[0.55 * inch, 1.15 * inch, 0.65 * inch, 0.65 * inch, 0.55 * inch, 2.35 * inch],
+            colWidths=[0.5 * inch, 1.0 * inch, 0.6 * inch, 0.6 * inch, 0.75 * inch, 0.5 * inch, 2.05 * inch],
             repeatRows=1,
         )
         gap_table.setStyle(TableStyle([
