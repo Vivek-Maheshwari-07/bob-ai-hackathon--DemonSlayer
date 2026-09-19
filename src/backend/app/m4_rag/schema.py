@@ -136,6 +136,19 @@ class GapItem(BaseModel):
         "MISSING regardless of the header match. None when the gate did not override this section (either it "
         "passed, or there was no body_text to gate on).",
     )
+    authenticity_verdict: Optional[str] = Field(
+        default=None,
+        description="Tier 3 grounded authenticity verdict (SUBSTANTIVE / GENERIC / INSUFFICIENT) from comparing "
+        "this section's real text against curated real-regulatory-document exemplars. None when Tier 3 was "
+        "skipped (no exemplars sourced yet for this section, the section didn't pass the substance gate, or "
+        "Gemini was unavailable) — the report degrades cleanly to Tier 1/2 behavior in that case.",
+    )
+    authenticity_evidence: Optional[dict] = Field(
+        default=None,
+        description="Tier 3 supporting evidence: missing_data_points (up to 3 named concrete data-point types "
+        "present in the exemplar(s) but absent from this section), candidate_citation, exemplar_citations, the "
+        "source_citation(s) compared against, and a one-sentence reasoning summary.",
+    )
 
 
 class ModuleCompleteness(BaseModel):

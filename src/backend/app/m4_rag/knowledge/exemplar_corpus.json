@@ -1,0 +1,28 @@
+{
+  "_todo": "PLACEHOLDER — no real exemplar text has been sourced yet. Every record below has exemplar_text=\"\" on purpose: the exemplar_text field must only ever hold text copied verbatim from a real, citable regulatory document (e.g. an FDA Medical/Chemistry Review, an EMA EPAR, a published CSR synopsis). Do NOT fill these in with plausible-sounding or model-generated text — that would defeat the entire point of Tier 3 (comparing candidate content against a REAL authentic exemplar). To populate: fetch the cited source document, copy a short (2-5 sentence) representative excerpt for that exact ICH section, and record its precise citation (document title, NDA/application number, page/section if available). Until a record's exemplar_text is non-empty, exemplar_retriever.py skips it and Tier 3 no-ops for that section_id — this is intentional graceful degradation, not a bug.",
+  "exemplars": [
+    { "section_id": "5.3.5", "source_citation": "TODO: e.g. FDA Medical Review, VIOXX NDA 21-042", "exemplar_text": "" },
+    { "section_id": "5.3.5", "source_citation": "TODO", "exemplar_text": "" },
+
+    { "section_id": "2.7", "source_citation": "TODO: e.g. FDA Clinical Summary Review, <drug> NDA <number>", "exemplar_text": "" },
+    { "section_id": "2.7", "source_citation": "TODO", "exemplar_text": "" },
+
+    { "section_id": "5.3.3", "source_citation": "TODO: e.g. FDA Clinical Pharmacology Review, <drug> NDA <number>", "exemplar_text": "" },
+    { "section_id": "5.3.3", "source_citation": "TODO", "exemplar_text": "" },
+
+    { "section_id": "5.3.4", "source_citation": "TODO: e.g. FDA Clinical Pharmacology Review (PK/PD section), <drug> NDA <number>", "exemplar_text": "" },
+    { "section_id": "5.3.4", "source_citation": "TODO", "exemplar_text": "" },
+
+    { "section_id": "4.2.1", "source_citation": "TODO: e.g. FDA Pharmacology Review, <drug> NDA <number>", "exemplar_text": "" },
+    { "section_id": "4.2.1", "source_citation": "TODO", "exemplar_text": "" },
+
+    { "section_id": "4.2.3", "source_citation": "TODO: e.g. FDA Pharmacology/Toxicology Review, VIOXX NDA 21-042", "exemplar_text": "" },
+    { "section_id": "4.2.3", "source_citation": "TODO", "exemplar_text": "" },
+
+    { "section_id": "3.2.S.7", "source_citation": "TODO: e.g. FDA Chemistry Review (Stability section), <drug> NDA <number>", "exemplar_text": "" },
+    { "section_id": "3.2.S.7", "source_citation": "TODO", "exemplar_text": "" },
+
+    { "section_id": "3.2.P.8", "source_citation": "TODO: e.g. FDA Chemistry Review (Drug Product Stability section), <drug> NDA <number>", "exemplar_text": "" },
+    { "section_id": "3.2.P.8", "source_citation": "TODO", "exemplar_text": "" }
+  ]
+}
