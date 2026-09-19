@@ -46,6 +46,7 @@ import { ErrorState } from "../components/ErrorState";
 import { EmptyState } from "../components/EmptyState";
 import { BobCopilotDrawer } from "../components/BobCopilotDrawer";
 import { SignalBubbleChart } from "../components/SignalBubbleChart";
+import { ContentAdequacyBadge } from "../components/ContentAdequacyBadge";
 
 
 // ─── Types ─────────────────────────────────────────────────────────────────
@@ -146,6 +147,13 @@ interface GapReport {
     match_evidence: { confidence_score: number; evidence_reasoning: string };
     requires_safety_update?: boolean;
     safety_update_reason?: string | null;
+    content_adequacy_score?: number | null;
+    checkpoint_results?: Array<{
+      id: string;
+      question: string;
+      answer: string;
+      quote: string | null;
+    }> | null;
   }>;
   recommended_actions: string[];
   limitations: string[];
@@ -2269,6 +2277,7 @@ function SubmissionReadinessView({
                       <th className="py-2.5 px-3">Section Title</th>
                       <th className="py-2.5 px-3">Severity</th>
                       <th className="py-2.5 px-3">Status</th>
+                      <th className="py-2.5 px-3">Content Adequacy</th>
                       <th className="py-2.5 px-3">Remediation Recommendation</th>
                       <th className="py-2.5 px-3">ICH M4 Evidence / Citation</th>
                     </tr>
@@ -2305,6 +2314,12 @@ function SubmissionReadinessView({
                         </td>
                         <td className="py-2 px-3">
                           <StatusBadge label={gap.status} size="sm" />
+                        </td>
+                        <td className="py-2 px-3">
+                          <ContentAdequacyBadge
+                            score={gap.content_adequacy_score ?? null}
+                            checkpoints={gap.checkpoint_results ?? null}
+                          />
                         </td>
                         <td className="py-2 px-3 text-slate-700 font-medium max-w-[280px]">
                           {gap.action_item || "Submit required technical documentation"}
