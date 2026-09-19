@@ -51,6 +51,7 @@ class KnowledgeBaseLoader:
                     weight=float(item.get("weight", 1.0)),
                     source=item.get("source", "ICH M4"),
                     keywords=item.get("keywords", []),
+                    content_checkpoints=item.get("content_checkpoints"),
                 )
             except (KeyError, ValueError, TypeError) as e:
                 raise ValueError(
