@@ -47,6 +47,7 @@ import { EmptyState } from "../components/EmptyState";
 import { BobCopilotDrawer } from "../components/BobCopilotDrawer";
 import { SignalBubbleChart } from "../components/SignalBubbleChart";
 import { ContentAdequacyBadge } from "../components/ContentAdequacyBadge";
+import { AuthenticityBadge } from "../components/AuthenticityBadge";
 
 
 // ─── Types ─────────────────────────────────────────────────────────────────
@@ -155,6 +156,14 @@ interface GapReport {
       quote: string | null;
     }> | null;
     substance_gate_reason?: string | null;
+    authenticity_verdict?: string | null;
+    authenticity_evidence?: {
+      missing_data_points?: string[];
+      candidate_citation?: string | null;
+      exemplar_citations?: string[];
+      source_citations?: string[];
+      reasoning?: string;
+    } | null;
   }>;
   recommended_actions: string[];
   limitations: string[];
@@ -2293,6 +2302,7 @@ function SubmissionReadinessView({
                       <th className="py-2.5 px-3">Severity</th>
                       <th className="py-2.5 px-3">Status</th>
                       <th className="py-2.5 px-3">Content Adequacy</th>
+                      <th className="py-2.5 px-3">Authenticity</th>
                       <th className="py-2.5 px-3">Remediation Recommendation</th>
                       <th className="py-2.5 px-3">ICH M4 Evidence / Citation</th>
                     </tr>
@@ -2334,6 +2344,12 @@ function SubmissionReadinessView({
                           <ContentAdequacyBadge
                             score={gap.content_adequacy_score ?? null}
                             checkpoints={gap.checkpoint_results ?? null}
+                          />
+                        </td>
+                        <td className="py-2 px-3">
+                          <AuthenticityBadge
+                            verdict={gap.authenticity_verdict ?? null}
+                            evidence={gap.authenticity_evidence ?? null}
                           />
                         </td>
                         <td className="py-2 px-3 text-slate-700 font-medium max-w-[280px]">
