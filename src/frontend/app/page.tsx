@@ -154,6 +154,7 @@ interface GapReport {
       answer: string;
       quote: string | null;
     }> | null;
+    substance_gate_reason?: string | null;
   }>;
   recommended_actions: string[];
   limitations: string[];
@@ -165,6 +166,7 @@ interface GapReport {
     confirmed_events: Array<{ event_term: string; prr: number; n_drug_event: number }>;
     message: string | null;
   } | null;
+  scale_warning?: string | null;
 }
 
 // ─── Main Application Component ────────────────────────────────────────────
@@ -2101,6 +2103,19 @@ function SubmissionReadinessView({
         />
       ) : gapReport ? (
         <div className="space-y-5">
+          {/* Tier 0 Document Scale Sanity Warning — surfaced ABOVE the completeness score */}
+          {gapReport.scale_warning && (
+            <div className="rounded border border-rose-300 bg-rose-50 p-3.5 shadow-2xs flex items-start gap-3">
+              <span className="text-xl leading-none">⚠️</span>
+              <div className="flex-1 min-w-0">
+                <div className="text-xs font-bold text-rose-800 uppercase tracking-wide">
+                  Document Scale Warning — Readiness Score May Not Be Meaningful
+                </div>
+                <p className="mt-1 text-xs text-rose-700 font-medium">{gapReport.scale_warning}</p>
+              </div>
+            </div>
+          )}
+
           {/* Summary Readiness Header */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5">
             <MetricCard

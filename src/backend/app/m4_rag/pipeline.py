@@ -24,6 +24,7 @@ try:
     from app.m4_rag.report_generator import ReportGenerator
     from app.m4_rag.retriever import ICHRetriever
     from app.m4_rag.safety_signal_link import apply_safety_signal_flags
+    from app.m4_rag.substance_gate import document_scale_check
     from app.m4_rag.schema import (
         DossierOutlineInput,
         GapReportOutput,
@@ -40,6 +41,7 @@ except ImportError:
     from .report_generator import ReportGenerator
     from .retriever import ICHRetriever
     from .safety_signal_link import apply_safety_signal_flags
+    from .substance_gate import document_scale_check
     from .schema import (
         DossierOutlineInput,
         GapReportOutput,
@@ -100,6 +102,23 @@ class CTDRagCheckerPipeline:
         # section has no checkpoints defined, so it never regresses Tier 1.
         self._apply_content_verification(normalized_outline, gap_items)
 
+        # Step 2d: Tier 0 document-scale sanity check. Only meaningful when
+        # this outline came from a real PDF (source_page_count is set by
+        # CTDPDFExtractor); stays None for dict/text/API inputs, so this
+        # never affects those paths. modules_claimed is read from
+        # match_evidence rather than post-gate status, since a section the
+        # substance gate just downgraded to MISSING was still "claimed" by
+        # the document.
+        modules_claimed = {
+            g.module_id for g in gap_items
+            if g.match_evidence.matched_dossier_section_id is not None
+        }
+        scale_warning = document_scale_check(
+            total_pages=normalized_outline.source_page_count,
+            total_word_count=normalized_outline.source_total_word_count,
+            modules_claimed=modules_claimed,
+        )
+
         # Step 3: Compute completeness scores
         overall_score, _ = self.scorer.calculate(gap_items)
 
@@ -130,6 +149,7 @@ class CTDRagCheckerPipeline:
             gap_items=gap_items,
             reasoning_insights=reasoning_insights,
             safety_signal_linkage=safety_signal_linkage,
+            scale_warning=scale_warning,
         )
 
         return report
