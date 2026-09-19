@@ -100,6 +100,7 @@ class DossierParser:
                 description=desc,
                 content_summary=sec.content_summary,
                 status_hint=sec.status_hint,
+                body_text=sec.body_text,
                 metadata=sec.metadata or {},
             )
 
@@ -122,6 +123,7 @@ class DossierParser:
                     description=merged_desc,
                     content_summary=existing.content_summary or cleaned_sec.content_summary,
                     status_hint=existing.status_hint or cleaned_sec.status_hint,
+                    body_text=existing.body_text or cleaned_sec.body_text,
                     metadata={**existing.metadata, **cleaned_sec.metadata},
                 )
             else:
@@ -133,6 +135,8 @@ class DossierParser:
             drug_name=(outline.drug_name or "").strip(),
             target_region=(outline.target_region or "Global / ICH").strip(),
             sections=normalized_sections,
+            source_page_count=outline.source_page_count,
+            source_total_word_count=outline.source_total_word_count,
         )
 
     @classmethod
@@ -150,12 +154,14 @@ class DossierParser:
                 sec_title = str(item.get("title") or item.get("name") or item.get("heading") or "")
                 sec_desc = str(item.get("description") or item.get("summary") or item.get("content") or "")
                 sec_status = item.get("status_hint") or item.get("status")
+                sec_body_text = item.get("body_text")
                 parsed_sections.append(
                     DossierSectionInput(
                         section_id=sec_id,
                         title=sec_title,
                         description=sec_desc,
                         status_hint=str(sec_status) if sec_status else None,
+                        body_text=str(sec_body_text) if sec_body_text is not None else None,
                         metadata=item.get("metadata", {}),
                     )
                 )

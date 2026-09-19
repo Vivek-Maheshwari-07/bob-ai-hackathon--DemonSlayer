@@ -46,7 +46,7 @@ import { ErrorState } from "../components/ErrorState";
 import { EmptyState } from "../components/EmptyState";
 import { BobCopilotDrawer } from "../components/BobCopilotDrawer";
 import { SignalBubbleChart } from "../components/SignalBubbleChart";
-import { ContentAdequacyBadge } from "../components/ContentAdequacyBadge";
+import { GuidelineCheckBadge } from "../components/GuidelineCheckBadge";
 
 
 // ─── Types ─────────────────────────────────────────────────────────────────
@@ -147,13 +147,14 @@ interface GapReport {
     match_evidence: { confidence_score: number; evidence_reasoning: string };
     requires_safety_update?: boolean;
     safety_update_reason?: string | null;
-    content_adequacy_score?: number | null;
-    checkpoint_results?: Array<{
-      id: string;
-      question: string;
-      answer: string;
-      quote: string | null;
-    }> | null;
+    substance_gate_reason?: string | null;
+    guideline_verdict?: string | null;
+    guideline_check_evidence?: {
+      requirements_present?: Array<{ requirement: string; evidence: string }>;
+      requirements_absent?: string[];
+      citation?: string;
+      reasoning?: string;
+    } | null;
   }>;
   recommended_actions: string[];
   limitations: string[];
@@ -165,6 +166,7 @@ interface GapReport {
     confirmed_events: Array<{ event_term: string; prr: number; n_drug_event: number }>;
     message: string | null;
   } | null;
+  scale_warning?: string | null;
 }
 
 // ─── Main Application Component ────────────────────────────────────────────
@@ -2101,6 +2103,19 @@ function SubmissionReadinessView({
         />
       ) : gapReport ? (
         <div className="space-y-5">
+          {/* Tier 0 Document Scale Sanity Warning — surfaced ABOVE the completeness score */}
+          {gapReport.scale_warning && (
+            <div className="rounded border border-rose-300 bg-rose-50 p-3.5 shadow-2xs flex items-start gap-3">
+              <span className="text-xl leading-none">⚠️</span>
+              <div className="flex-1 min-w-0">
+                <div className="text-xs font-bold text-rose-800 uppercase tracking-wide">
+                  Document Scale Warning — Readiness Score May Not Be Meaningful
+                </div>
+                <p className="mt-1 text-xs text-rose-700 font-medium">{gapReport.scale_warning}</p>
+              </div>
+            </div>
+          )}
+
           {/* Summary Readiness Header */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5">
             <MetricCard
@@ -2277,7 +2292,7 @@ function SubmissionReadinessView({
                       <th className="py-2.5 px-3">Section Title</th>
                       <th className="py-2.5 px-3">Severity</th>
                       <th className="py-2.5 px-3">Status</th>
-                      <th className="py-2.5 px-3">Content Adequacy</th>
+                      <th className="py-2.5 px-3">Guideline Check</th>
                       <th className="py-2.5 px-3">Remediation Recommendation</th>
                       <th className="py-2.5 px-3">ICH M4 Evidence / Citation</th>
                     </tr>
@@ -2316,9 +2331,9 @@ function SubmissionReadinessView({
                           <StatusBadge label={gap.status} size="sm" />
                         </td>
                         <td className="py-2 px-3">
-                          <ContentAdequacyBadge
-                            score={gap.content_adequacy_score ?? null}
-                            checkpoints={gap.checkpoint_results ?? null}
+                          <GuidelineCheckBadge
+                            verdict={gap.guideline_verdict ?? null}
+                            evidence={gap.guideline_check_evidence ?? null}
                           />
                         </td>
                         <td className="py-2 px-3 text-slate-700 font-medium max-w-[280px]">

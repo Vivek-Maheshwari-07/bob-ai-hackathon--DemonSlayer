@@ -40,6 +40,14 @@ class DossierSectionInput(BaseModel):
     description: Optional[str] = Field(default="", description="Summary or description of section contents")
     content_summary: Optional[str] = Field(default=None, description="Detailed text or outline notes")
     status_hint: Optional[str] = Field(default=None, description="Self-reported status (e.g., Draft, Complete)")
+    body_text: Optional[str] = Field(
+        default=None,
+        description="Full, uncapped narrative/body text captured between this section's heading and the next "
+        "(populated by PDF extraction, or explicitly supplied by an API caller). Distinct from `description`, "
+        "which stays a short, truncated preview used for display/matching. None when no real body text was "
+        "captured (e.g. a short structured dict/API submission) — the Tier 0 substance gate treats that as "
+        "'nothing to gate on' rather than as a failure, so it never regresses those inputs.",
+    )
     metadata: Dict[str, Any] = Field(default_factory=dict, description="Supplementary metadata")
 
     @field_validator("section_id", "title", mode="before")
@@ -56,6 +64,16 @@ class DossierOutlineInput(BaseModel):
     drug_name: Optional[str] = Field(default="", description="Investigational / commercial drug substance name")
     target_region: Optional[str] = Field(default="Global / ICH", description="Target regulatory agency/region (FDA/EMA/PMDA)")
     sections: List[DossierSectionInput] = Field(default_factory=list, description="List of parsed dossier sections")
+    source_page_count: Optional[int] = Field(
+        default=None,
+        description="Total physical page count of the source PDF, when this outline was extracted from a PDF "
+        "document. None for dict/text/API inputs. Used only by the Tier 0 document-scale sanity check.",
+    )
+    source_total_word_count: Optional[int] = Field(
+        default=None,
+        description="Total word count of the raw extracted PDF text, when this outline was extracted from a PDF "
+        "document. None for dict/text/API inputs. Used only by the Tier 0 document-scale sanity check.",
+    )
 
 
 class ICHSectionRequirement(BaseModel):
@@ -111,6 +129,40 @@ class GapItem(BaseModel):
         default=None,
         description="Per-checkpoint Tier 2 verification results (id, question, answer, quote) grounded strictly in the matched dossier section text.",
     )
+    substance_gate_reason: Optional[str] = Field(
+        default=None,
+        description="Tier 0 substance-gate override reason: set when this section's header/title matched but its "
+        "body_text word count fell below the calibrated floor for its module+criticality, forcing status to "
+        "MISSING regardless of the header match. None when the gate did not override this section (either it "
+        "passed, or there was no body_text to gate on).",
+    )
+    authenticity_verdict: Optional[str] = Field(
+        default=None,
+        description="Tier 3 grounded authenticity verdict (SUBSTANTIVE / GENERIC / INSUFFICIENT) from comparing "
+        "this section's real text against curated real-regulatory-document exemplars. None when Tier 3 was "
+        "skipped (no exemplars sourced yet for this section, the section didn't pass the substance gate, or "
+        "Gemini was unavailable) — the report degrades cleanly to Tier 1/2 behavior in that case.",
+    )
+    authenticity_evidence: Optional[dict] = Field(
+        default=None,
+        description="Tier 3 supporting evidence: missing_data_points (up to 3 named concrete data-point types "
+        "present in the exemplar(s) but absent from this section), candidate_citation, exemplar_citations, the "
+        "source_citation(s) compared against, and a one-sentence reasoning summary.",
+    )
+    guideline_verdict: Optional[str] = Field(
+        default=None,
+        description="Consolidated guideline-grounded verdict (SUBSTANTIVE / GENERIC / INSUFFICIENT / EMPTY) from "
+        "comparing this section's real body_text against the actual ICH guideline requirement excerpt for its "
+        "section_id via Claude Haiku. None when this check was skipped (the section didn't pass the substance "
+        "gate, no guideline excerpt exists yet for this section_id, or ANTHROPIC_API_KEY is unavailable) — the "
+        "report degrades cleanly to Tier 1 + substance-gate behavior in that case.",
+    )
+    guideline_check_evidence: Optional[dict] = Field(
+        default=None,
+        description="Supporting evidence for guideline_verdict: requirements_present (each with the exact quoted "
+        "candidate evidence), requirements_absent, the guideline citation compared against (e.g. 'ICH E3 "
+        "§11.2, §12.3'), and a one-sentence reasoning summary.",
+    )
 
 
 class ModuleCompleteness(BaseModel):
@@ -147,4 +199,10 @@ class GapReportOutput(BaseModel):
     safety_signal_linkage: Optional[Dict[str, Any]] = Field(
         default=None,
         description="Cross-link to Mode 1 (M2 PRR) signal detection: whether this drug has an active CONFIRMED_SIGNAL and which CTD sections are flagged for mandatory safety review as a result.",
+    )
+    scale_warning: Optional[str] = Field(
+        default=None,
+        description="Tier 0 document-scale sanity warning: set when the source PDF's total page count is "
+        "implausibly low for the CTD modules it claims to cover (e.g. a 5-page file claiming genuine Module 5 "
+        "clinical study report content). None for non-PDF inputs, or when the document's scale is plausible.",
     )

@@ -43,6 +43,32 @@ class CompletenessScorer:
     CONTENT_ADEQUACY_PRESENT_THRESHOLD = 0.8
     CONTENT_ADEQUACY_PARTIAL_THRESHOLD = 0.4
 
+    # Tier 3 content-authenticity downgrade: the grounded verdict from
+    # comparing a section against real exemplar text is the last tier in the
+    # pipeline (Tier 1 -> substance gate -> Tier 2 -> Tier 3 -> final status),
+    # so when it ran (authenticity_verdict is not None) it is the final word
+    # on effective status, overriding whatever Tier 1/2 decided. SUBSTANTIVE
+    # leaves the prior tiers' effective status untouched. Sections where
+    # Tier 3 never ran (no exemplars yet, section didn't pass the substance
+    # gate, or Gemini unavailable) keep falling through to the Tier 2 / Tier 1
+    # logic below, unchanged.
+    AUTHENTICITY_STATUS_OVERRIDE = {
+        "GENERIC": WEIGHT_PARTIAL,
+        "INSUFFICIENT": WEIGHT_MISSING,
+    }
+
+    # Consolidated guideline-grounded check (guideline_grounded_checker.py):
+    # the current, single content-verification tier run after the substance
+    # gate. Same override semantics as Tier 3 above — GENERIC downgrades to
+    # PARTIAL, INSUFFICIENT/EMPTY downgrade to MISSING, SUBSTANTIVE (or no
+    # verdict at all, i.e. the check didn't run) leaves the substance-gated
+    # Tier 1 status unchanged.
+    GUIDELINE_STATUS_OVERRIDE = {
+        "GENERIC": WEIGHT_PARTIAL,
+        "INSUFFICIENT": WEIGHT_MISSING,
+        "EMPTY": WEIGHT_MISSING,
+    }
+
     MODULE_NAMES = {
         1: "Module 1: Administrative Information",
         2: "Module 2: CTD Summaries",
@@ -57,11 +83,24 @@ class CompletenessScorer:
     def _effective_status_score(self, item: GapItem) -> float:
         """Returns the per-item status score used in the weighted formula.
 
-        When Tier 2 content-adequacy verification ran for this section
-        (content_adequacy_score is not None), that grounded score overrides
-        the Tier-1 structural status score. Otherwise falls back to the
-        original Tier-1 PRESENT/PARTIAL/MISSING score, unchanged.
+        Tier precedence (last tier that actually ran wins): the consolidated
+        guideline-grounded verdict, if present, is final. Otherwise falls
+        back to the legacy Tier 3 authenticity verdict if present (kept for
+        backward compatibility with anything still setting it directly), then
+        Tier 2 content-adequacy score, then the original Tier-1/substance-gate
+        PRESENT/PARTIAL/MISSING status, unchanged.
         """
+        guideline_verdict = getattr(item, "guideline_verdict", None)
+        if guideline_verdict in self.GUIDELINE_STATUS_OVERRIDE:
+            return self.GUIDELINE_STATUS_OVERRIDE[guideline_verdict]
+
+        verdict = getattr(item, "authenticity_verdict", None)
+        if verdict in self.AUTHENTICITY_STATUS_OVERRIDE:
+            return self.AUTHENTICITY_STATUS_OVERRIDE[verdict]
+        # A SUBSTANTIVE verdict (or no verdict at all, i.e. neither check ran)
+        # falls through deliberately, leaving whatever Tier 2 / Tier 1 already
+        # decided unchanged.
+
         score = getattr(item, "content_adequacy_score", None)
         if score is not None:
             if score >= self.CONTENT_ADEQUACY_PRESENT_THRESHOLD:

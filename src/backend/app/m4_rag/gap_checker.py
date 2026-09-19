@@ -11,6 +11,7 @@ from scipy.optimize import linear_sum_assignment
 
 from app.m4_rag.knowledge.loader import get_knowledge_base, KnowledgeBaseLoader
 from app.m4_rag.retriever import ICHRetriever
+from app.m4_rag.substance_gate import substance_gate
 from app.m4_rag.schema import (
     CriticalityLevel,
     DossierOutlineInput,
@@ -168,6 +169,37 @@ class GapChecker:
         evidence_prefix: str,
     ) -> GapItem:
         """Determines whether a matched section is PRESENT or PARTIAL based on content."""
+        # Tier 0 substance gate: run before any PRESENT/PARTIAL classification,
+        # for both exact-ID and semantic matches. A header/title match with no
+        # real body text behind it (a title + status-label row, for instance)
+        # is forced to MISSING here regardless of how confidently Tier 1
+        # matched it. No-ops (returns None, None) when the matched section
+        # never captured body_text, so short structured/API descriptions are
+        # unaffected.
+        gate_status, gate_reason = substance_gate(matched_sec, req)
+        if gate_status == GapStatus.MISSING:
+            return GapItem(
+                section_id=req.section_id,
+                module_id=req.module_id,
+                module_name=req.module_name,
+                title=req.title,
+                status=GapStatus.MISSING,
+                criticality=req.criticality,
+                match_evidence=MatchEvidence(
+                    match_method=method,
+                    confidence_score=confidence,
+                    matched_dossier_section_id=matched_sec.section_id or "N/A",
+                    matched_dossier_title=matched_sec.title,
+                    evidence_reasoning=f"{evidence_prefix} {gate_reason}",
+                ),
+                action_item=(
+                    f"Attach substantive documentation for Section {req.section_id} ({req.title}). "
+                    f"{gate_reason} Adhere to {req.source}."
+                ),
+                source_reference=req.source,
+                substance_gate_reason=gate_reason,
+            )
+
         desc = (matched_sec.description or "").strip()
         status_hint = (matched_sec.status_hint or "").strip()
         combined_text = f"{desc} {status_hint}"
