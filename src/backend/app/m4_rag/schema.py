@@ -149,6 +149,20 @@ class GapItem(BaseModel):
         "present in the exemplar(s) but absent from this section), candidate_citation, exemplar_citations, the "
         "source_citation(s) compared against, and a one-sentence reasoning summary.",
     )
+    guideline_verdict: Optional[str] = Field(
+        default=None,
+        description="Consolidated guideline-grounded verdict (SUBSTANTIVE / GENERIC / INSUFFICIENT / EMPTY) from "
+        "comparing this section's real body_text against the actual ICH guideline requirement excerpt for its "
+        "section_id via Claude Haiku. None when this check was skipped (the section didn't pass the substance "
+        "gate, no guideline excerpt exists yet for this section_id, or ANTHROPIC_API_KEY is unavailable) — the "
+        "report degrades cleanly to Tier 1 + substance-gate behavior in that case.",
+    )
+    guideline_check_evidence: Optional[dict] = Field(
+        default=None,
+        description="Supporting evidence for guideline_verdict: requirements_present (each with the exact quoted "
+        "candidate evidence), requirements_absent, the guideline citation compared against (e.g. 'ICH E3 "
+        "§11.2, §12.3'), and a one-sentence reasoning summary.",
+    )
 
 
 class ModuleCompleteness(BaseModel):

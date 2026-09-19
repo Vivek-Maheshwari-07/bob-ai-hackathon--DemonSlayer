@@ -2,8 +2,9 @@
 
 Tier 1 (gap_checker.py) verifies structural presence: does a required
 section exist somewhere in the dossier outline, matched by exact ID or
-semantic title/description similarity? Tier 2 (content_verifier.py) verifies
-grounded content adequacy for a curated set of 8 sections via Gemini.
+semantic title/description similarity? The guideline-grounded checker
+(guideline_grounded_checker.py) verifies grounded content adequacy against
+real ICH guideline excerpts for a curated set of sections via Claude Haiku.
 
 Neither catches the simplest failure mode of all: a section whose entire
 "content" is a title and a self-reported status label ("PRESENT") with zero

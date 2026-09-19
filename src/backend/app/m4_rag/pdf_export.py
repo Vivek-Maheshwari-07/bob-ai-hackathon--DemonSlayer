@@ -103,42 +103,35 @@ def generate_gap_report_pdf(report: GapReportOutput) -> bytes:
     story.append(Paragraph(f"Priority Gaps ({len(report.priority_gaps)})", styles["Heading2"]))
     if report.priority_gaps:
         gap_rows = [
-            ["Section", "Title", "Status", "Criticality", "Content Adequacy", "Authenticity", "Safety", "Action Item"]
+            ["Section", "Title", "Status", "Criticality", "Guideline Check", "Safety", "Action Item"]
         ]
         for g in report.priority_gaps:
-            adequacy_score = getattr(g, "content_adequacy_score", None)
-            if adequacy_score is None:
-                adequacy_cell = Paragraph("N/A", cell_style)
-            else:
-                adequacy_cell = Paragraph(f"{adequacy_score * 100:.0f}%", cell_style)
-
-            verdict = getattr(g, "authenticity_verdict", None)
+            verdict = getattr(g, "guideline_verdict", None)
             if verdict is None:
-                authenticity_cell = Paragraph("N/A", cell_style)
+                guideline_cell = Paragraph("N/A", cell_style)
             else:
-                evidence = getattr(g, "authenticity_evidence", None) or {}
-                citations = evidence.get("source_citations") or []
-                missing_points = evidence.get("missing_data_points") or []
+                evidence = getattr(g, "guideline_check_evidence", None) or {}
+                citation = evidence.get("citation") or ""
+                requirements_absent = evidence.get("requirements_absent") or []
                 detail_lines = [f"<b>{escape(verdict)}</b>"]
-                if citations:
-                    detail_lines.append(f"Compared against: {escape('; '.join(citations))}")
-                if missing_points:
-                    detail_lines.append(f"Missing: {escape(', '.join(missing_points))}")
-                authenticity_cell = Paragraph("<br/>".join(detail_lines), cell_style)
+                if citation:
+                    detail_lines.append(f"Compared against: {escape(citation)}")
+                if requirements_absent:
+                    detail_lines.append(f"Absent: {escape(', '.join(requirements_absent))}")
+                guideline_cell = Paragraph("<br/>".join(detail_lines), cell_style)
 
             gap_rows.append([
                 Paragraph(escape(g.section_id), cell_style),
                 Paragraph(escape(g.title), cell_style),
                 Paragraph(escape(_enum_value(g.status)), cell_style),
                 Paragraph(escape(_enum_value(g.criticality)), cell_style),
-                adequacy_cell,
-                authenticity_cell,
+                guideline_cell,
                 Paragraph("&#9888; YES" if g.requires_safety_update else "-", cell_style),
                 Paragraph(escape(g.action_item or ""), cell_style),
             ])
         gap_table = Table(
             gap_rows,
-            colWidths=[0.45 * inch, 0.85 * inch, 0.5 * inch, 0.5 * inch, 0.65 * inch, 1.3 * inch, 0.4 * inch, 1.75 * inch],
+            colWidths=[0.5 * inch, 0.9 * inch, 0.55 * inch, 0.55 * inch, 1.8 * inch, 0.45 * inch, 1.75 * inch],
             repeatRows=1,
         )
         gap_table.setStyle(TableStyle([

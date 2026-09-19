@@ -57,6 +57,18 @@ class CompletenessScorer:
         "INSUFFICIENT": WEIGHT_MISSING,
     }
 
+    # Consolidated guideline-grounded check (guideline_grounded_checker.py):
+    # the current, single content-verification tier run after the substance
+    # gate. Same override semantics as Tier 3 above — GENERIC downgrades to
+    # PARTIAL, INSUFFICIENT/EMPTY downgrade to MISSING, SUBSTANTIVE (or no
+    # verdict at all, i.e. the check didn't run) leaves the substance-gated
+    # Tier 1 status unchanged.
+    GUIDELINE_STATUS_OVERRIDE = {
+        "GENERIC": WEIGHT_PARTIAL,
+        "INSUFFICIENT": WEIGHT_MISSING,
+        "EMPTY": WEIGHT_MISSING,
+    }
+
     MODULE_NAMES = {
         1: "Module 1: Administrative Information",
         2: "Module 2: CTD Summaries",
@@ -71,17 +83,21 @@ class CompletenessScorer:
     def _effective_status_score(self, item: GapItem) -> float:
         """Returns the per-item status score used in the weighted formula.
 
-        Tier precedence (last tier that actually ran wins): Tier 3
-        authenticity verdict, if present, is final. Otherwise, if Tier 2
-        content-adequacy verification ran for this section
-        (content_adequacy_score is not None), that grounded score overrides
-        the Tier-1 structural status score. Otherwise falls back to the
-        original Tier-1 PRESENT/PARTIAL/MISSING score, unchanged.
+        Tier precedence (last tier that actually ran wins): the consolidated
+        guideline-grounded verdict, if present, is final. Otherwise falls
+        back to the legacy Tier 3 authenticity verdict if present (kept for
+        backward compatibility with anything still setting it directly), then
+        Tier 2 content-adequacy score, then the original Tier-1/substance-gate
+        PRESENT/PARTIAL/MISSING status, unchanged.
         """
+        guideline_verdict = getattr(item, "guideline_verdict", None)
+        if guideline_verdict in self.GUIDELINE_STATUS_OVERRIDE:
+            return self.GUIDELINE_STATUS_OVERRIDE[guideline_verdict]
+
         verdict = getattr(item, "authenticity_verdict", None)
         if verdict in self.AUTHENTICITY_STATUS_OVERRIDE:
             return self.AUTHENTICITY_STATUS_OVERRIDE[verdict]
-        # A SUBSTANTIVE verdict (or no verdict at all, i.e. Tier 3 didn't run)
+        # A SUBSTANTIVE verdict (or no verdict at all, i.e. neither check ran)
         # falls through deliberately, leaving whatever Tier 2 / Tier 1 already
         # decided unchanged.
 
