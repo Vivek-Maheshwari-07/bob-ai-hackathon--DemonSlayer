@@ -37,6 +37,7 @@ class ReportGenerator:
         gap_items: List[GapItem],
         reasoning_insights: Optional[List[str]] = None,
         safety_signal_linkage: Optional[Dict[str, Any]] = None,
+        scale_warning: Optional[str] = None,
     ) -> GapReportOutput:
         """Constructs full GapReportOutput.
 
@@ -45,6 +46,7 @@ class ReportGenerator:
             gap_items: Full list of evaluated ICH requirements.
             reasoning_insights: Optional LLM-grounded narrative insights.
             safety_signal_linkage: Optional Mode 1 (M2 PRR) signal cross-link summary.
+            scale_warning: Optional Tier 0 document-scale sanity warning (PDF inputs only).
 
         Returns:
             Validated GapReportOutput instance.
@@ -104,6 +106,7 @@ class ReportGenerator:
             limitations=limitations,
             timestamp=now_iso,
             safety_signal_linkage=safety_signal_linkage,
+            scale_warning=scale_warning,
         )
 
     def _build_recommendations(

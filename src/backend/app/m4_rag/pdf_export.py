@@ -51,6 +51,10 @@ def generate_gap_report_pdf(report: GapReportOutput) -> bytes:
     story.append(Paragraph(f"Generated: {escape(report.timestamp)}", normal_style))
     story.append(Spacer(1, 0.2 * inch))
 
+    if report.scale_warning:
+        story.append(Paragraph(f"<b>&#9888; {escape(report.scale_warning)}</b>", alert_style))
+        story.append(Spacer(1, 0.2 * inch))
+
     linkage = report.safety_signal_linkage or {}
     if linkage.get("has_confirmed_signal"):
         msg = linkage.get("message") or "Active FAERS/PRR safety signal on file for this drug."
